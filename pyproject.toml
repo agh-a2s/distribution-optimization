@@ -9,16 +9,23 @@ readme = "README.md"
 python = "^3.10"
 numpy = "^1.26.3"
 scipy = "^1.11.4"
+structlog = "^24.1.0"
+leap-ec = "^0.8.1"
+scikit-learn = "^1.4.0"
+optuna = "^3.5.0"
+optuna-dashboard = "^0.14.0"
+dill = "^0.3.8"
 
 
 [tool.poetry.group.dev.dependencies]
 pandas = "^2.1.4"
 ipykernel = "^6.29.0"
+pytest = "^8.0.1"
+pre-commit = "^3.6.2"
 
 
 
 [tool.poetry.group.hmspy.dependencies]
-leap-ec = "0.7.0"
 cma = "^3.3.0"
 treelib = "^1.7.0"
 
