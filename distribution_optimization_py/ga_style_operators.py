@@ -1,26 +1,13 @@
-from leap_ec.problem import FunctionProblem
-from leap_ec.individual import Individual
-import pandas as pd
-import numpy as np
-from distribution_optimization_py.problem import GaussianMixtureProblem
-import random
-from dataclasses import dataclass
-import leap_ec.ops as lops
-from leap_ec.individual import Individual
-from leap_ec.real_rep import create_real_vector
-from leap_ec.real_rep.ops import mutate_gaussian
-from leap_ec.representation import Representation
-from toolz import pipe
-from leap_ec.util import wrap_curry
-import numpy as np
 from typing import Iterator
+
+import leap_ec.ops as lops
+import numpy as np
+from leap_ec.util import wrap_curry
 
 
 @wrap_curry
 @lops.iteriter_op
-def mutate_uniform(
-    next_individual: Iterator, p_mutate: float = 0.1, bounds=(-np.inf, np.inf), fix=None
-) -> Iterator:
+def mutate_uniform(next_individual: Iterator, p_mutate: float = 0.1, bounds=(-np.inf, np.inf), fix=None) -> Iterator:
     """
     Mutate an individual by applying a uniform mutation to a single random gene.
 
@@ -35,9 +22,7 @@ def mutate_uniform(
         individual = next(next_individual)
         if np.random.rand() <= p_mutate:
             gene_index = np.random.randint(0, len(individual.genome))
-            mutated_gene = np.random.uniform(
-                bounds[gene_index][0], bounds[gene_index][1]
-            )
+            mutated_gene = np.random.uniform(bounds[gene_index][0], bounds[gene_index][1])
             individual.genome[gene_index] = mutated_gene
             if fix is not None:
                 individual.genome = fix(individual.genome)
@@ -64,9 +49,7 @@ def mutate_aggresive_uniform(
         individual = next(next_individual)
         for gene_index in range(len(individual.genome)):
             if np.random.rand() <= p_mutate:
-                mutated_gene = np.random.uniform(
-                    bounds[gene_index][0], bounds[gene_index][1]
-                )
+                mutated_gene = np.random.uniform(bounds[gene_index][0], bounds[gene_index][1])
                 individual.genome[gene_index] = mutated_gene
                 if fix is not None:
                     individual.genome = fix(individual.genome)
@@ -90,9 +73,7 @@ class ArithmeticCrossover(lops.Crossover):
         Perform arithmetic recombination between two parents to produce two new individuals.
         For each recombination, alpha is sampled from a uniform distribution [0, 1].
         """
-        assert isinstance(parent_a.genome, np.ndarray) and isinstance(
-            parent_b.genome, np.ndarray
-        )
+        assert isinstance(parent_a.genome, np.ndarray) and isinstance(parent_b.genome, np.ndarray)
 
         if np.random.rand() <= self.p_xover:
             # Ensure both genomes are of the same length
@@ -102,13 +83,8 @@ class ArithmeticCrossover(lops.Crossover):
             alpha = np.random.uniform(0, 1)
 
             # Create offspring by linear combination of parents' genomes
-            offspring_a_genome = (
-                alpha * parent_a.genome[:min_length]
-                + (1 - alpha) * parent_b.genome[:min_length]
-            )
-            offspring_b_genome = (1 - alpha) * parent_a.genome[
-                :min_length
-            ] + alpha * parent_b.genome[:min_length]
+            offspring_a_genome = alpha * parent_a.genome[:min_length] + (1 - alpha) * parent_b.genome[:min_length]
+            offspring_b_genome = (1 - alpha) * parent_a.genome[:min_length] + alpha * parent_b.genome[:min_length]
 
             # Update genomes of offspring
             parent_a.genome[:min_length] = offspring_a_genome

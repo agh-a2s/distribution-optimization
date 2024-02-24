@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def scale_linearly(
     x: np.ndarray,
     source_lower: np.ndarray,
@@ -11,15 +12,26 @@ def scale_linearly(
     return target_lower + normalized_x * (target_upper - target_lower)
 
 
-def reals_to_simplex(
+def reals_to_full_simplex(
     x: np.ndarray,
 ) -> np.ndarray:
     return (1 - x) * np.cumprod(np.concatenate([np.array([1]), x[:-1]]))
 
 
-def simplex_to_reals(x: np.ndarray) -> np.ndarray:
+def full_simplex_to_reals(x: np.ndarray) -> np.ndarray:
     x_cum_sum = np.cumsum(x)
     return (x_cum_sum - 1) / (np.concatenate([np.array([0]), x_cum_sum[:-1]]) - 1)
+
+
+def reals_to_simplex(
+    x: np.ndarray,
+) -> np.ndarray:
+    return np.concatenate([(1 - x), np.array([1])]) * np.cumprod(np.concatenate([np.array([1]), x]))
+
+
+def simplex_to_reals(x: np.ndarray) -> np.ndarray:
+    flipped_cumsum = np.flip(np.cumsum(np.flip(x[1:])))
+    return flipped_cumsum / (x[:-1] + flipped_cumsum)
 
 
 def reals_to_reals_with_offset(x: np.ndarray) -> np.ndarray:

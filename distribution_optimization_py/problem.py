@@ -1,7 +1,15 @@
 import numpy as np
 from scipy.stats import norm
 
-from .scale import scale_linearly as scale
+from .scale import (
+    full_simplex_to_reals,
+    reals_to_full_simplex,
+    reals_to_reals_with_offset,
+    reals_to_simplex,
+    reals_with_offset_to_reals,
+    scale_linearly,
+    simplex_to_reals,
+)
 from .utils import bin_prob_for_mixtures, optimal_no_bins
 
 INFINITY = 1000000
@@ -14,8 +22,6 @@ class GaussianMixtureProblem:
         self,
         data: np.ndarray,
         nr_of_modes: int,
-        lower: float | None = None,
-        upper: float | None = None,
         nr_of_kernels: int | None = DEFAULT_NR_OF_KERNELS,
         overlap_tolerance: float | None = DEFAULT_OVERLAP_TOLERANCE,
     ):
@@ -28,43 +34,16 @@ class GaussianMixtureProblem:
         self.nr_of_kernels = nr_of_kernels  # Kernels are used to estimate the overlap error.
         self.overlap_tolerance = overlap_tolerance
         self.data_lower, self.data_upper = self.get_bounds()
-        if lower is not None and upper is not None:
-            self.lower = np.array([lower] * self.nr_of_modes * 3)
-            self.upper = np.array([upper] * self.nr_of_modes * 3)
-        else:
-            self.lower = None
-            self.upper = None
 
     def __call__(self, x: np.ndarray) -> float:
-        if self.lower is not None and self.upper is not None:
-            x = scale(x, self.lower, self.upper, self.data_lower, self.data_upper)
-        x = self.fix(x)
         weights = x[: self.nr_of_modes]
         sds = x[self.nr_of_modes : 2 * self.nr_of_modes]
         means = x[2 * self.nr_of_modes :]
         overlap_error = self.overlap_error_by_density(means, sds, weights)
         if overlap_error > self.overlap_tolerance:
-            # return np.Inf
             return INFINITY
         similarity_error = self.similarity_error(means, sds, weights)
         return similarity_error
-
-    def fix(self, x: np.ndarray) -> np.ndarray:
-        x[: self.nr_of_modes] = x[: self.nr_of_modes] / np.sum(x[: self.nr_of_modes])
-        means_order = np.argsort(x[2 * self.nr_of_modes :])
-        x[: self.nr_of_modes] = x[: self.nr_of_modes][means_order]
-        x[self.nr_of_modes : 2 * self.nr_of_modes] = x[self.nr_of_modes : 2 * self.nr_of_modes][means_order]
-        x[2 * self.nr_of_modes :] = x[2 * self.nr_of_modes :][means_order]
-        return x
-
-    def fix_and_scale(self, x: np.ndarray) -> np.ndarray:
-        if self.lower is not None and self.upper is not None:
-            x = scale(x, self.lower, self.upper, self.data_lower, self.data_upper)
-        x = self.fix(x)
-        if self.lower is not None and self.upper is not None:
-            x = scale(x, self.data_lower, self.data_upper, self.lower, self.upper)
-        x = np.clip(x, self.lower, self.upper)
-        return x
 
     def overlap_error_by_density(self, means: np.ndarray, sds: np.ndarray, weights: np.ndarray) -> float:
         kernels = np.linspace(np.min(self.data), np.max(self.data), self.nr_of_kernels)
@@ -103,11 +82,9 @@ class GaussianMixtureProblem:
         upper = np.concatenate([weights_upper, sds_upper, means_upper])
         return lower, upper
 
-    def scale_to_data_bounds(self, x: np.ndarray) -> np.ndarray:
-        scaled_x = scale(x, self.lower, self.upper, self.data_lower, self.data_upper)
-        return self.fix(scaled_x)
-
-    def initialize_equidistant(self, should_scale: bool | None = True) -> np.ndarray:
+    def initialize(
+        self,
+    ) -> np.ndarray:
         weights = np.random.uniform(
             self.data_lower[: self.nr_of_modes],
             self.data_upper[: self.nr_of_modes],
@@ -126,20 +103,128 @@ class GaussianMixtureProblem:
         )
         weights = weights / np.sum(weights)
         x = np.concatenate([weights, sds, means])
+        x = np.minimum(np.maximum(x, self.data_lower), self.data_upper)
+        return x
+
+
+DEFAULT_LOWER = -5
+DEFAULT_UPPER = 5
+
+
+class LinearlyScaledGaussianMixtureProblem(GaussianMixtureProblem):
+    def __init__(
+        self,
+        data: np.ndarray,
+        nr_of_modes: int,
+        lower: float | None = DEFAULT_LOWER,
+        upper: float | None = DEFAULT_UPPER,
+        nr_of_kernels: int | None = DEFAULT_NR_OF_KERNELS,
+        overlap_tolerance: float | None = DEFAULT_OVERLAP_TOLERANCE,
+    ):
+        super().__init__(data, nr_of_modes, nr_of_kernels, overlap_tolerance)
+        self.lower = np.array([lower] * self.nr_of_modes * 3)
+        self.upper = np.array([upper] * self.nr_of_modes * 3)
+
+    def __call__(self, x: np.ndarray) -> float:
+        if self.lower is not None and self.upper is not None:
+            x = scale_linearly(x, self.lower, self.upper, self.data_lower, self.data_upper)
         fixed_x = self.fix(x)
-        if not should_scale:
-            return fixed_x
-        scaled_x = scale(fixed_x, self.data_lower, self.data_upper, self.lower, self.upper)
+        return super().__call__(fixed_x)
+
+    def fix(self, x: np.ndarray) -> np.ndarray:
+        x[: self.nr_of_modes] = x[: self.nr_of_modes] / np.sum(x[: self.nr_of_modes])
+        means_order = np.argsort(x[2 * self.nr_of_modes :])
+        x[: self.nr_of_modes] = x[: self.nr_of_modes][means_order]
+        x[self.nr_of_modes : 2 * self.nr_of_modes] = x[self.nr_of_modes : 2 * self.nr_of_modes][means_order]
+        x[2 * self.nr_of_modes :] = x[2 * self.nr_of_modes :][means_order]
+        return x
+
+    def fix_and_scale(self, x: np.ndarray) -> np.ndarray:
+        if self.lower is not None and self.upper is not None:
+            x = scale_linearly(x, self.lower, self.upper, self.data_lower, self.data_upper)
+        x = self.fix(x)
+        if self.lower is not None and self.upper is not None:
+            x = scale_linearly(x, self.data_lower, self.data_upper, self.lower, self.upper)
+        x = np.clip(x, self.lower, self.upper)
+        return x
+
+    def scale_to_data_bounds(self, x: np.ndarray) -> np.ndarray:
+        scaled_x = scale_linearly(x, self.lower, self.upper, self.data_lower, self.data_upper)
+        return self.fix(scaled_x)
+
+    def initialize(self) -> np.ndarray:
+        x = super().initialize()
+        fixed_x = self.fix(x)
+        scaled_x = scale_linearly(fixed_x, self.data_lower, self.data_upper, self.lower, self.upper)
         scaled_x = np.minimum(np.maximum(scaled_x, self.lower), self.upper)
         return scaled_x
 
-    def initialize(self) -> np.ndarray:
-        return self.initialize_equidistant()
-        # p = random.random()
-        # if p < 0.7:
-        #     return self.initialize_equidistant()
-        # else:
-        #     return np.random.uniform(self.lower[0], self.upper[0], self.nr_of_modes * 3)
 
-    def initialize_population(self, size: int) -> np.ndarray:
-        return np.array([self.initialize() for _ in range(size)])
+class ScaledGaussianMixtureProblem(GaussianMixtureProblem):
+    def __init__(
+        self,
+        data: np.ndarray,
+        nr_of_modes: int,
+        nr_of_kernels: int | None = DEFAULT_NR_OF_KERNELS,
+        overlap_tolerance: float | None = DEFAULT_OVERLAP_TOLERANCE,
+    ):
+        super().__init__(data, nr_of_modes, nr_of_kernels, overlap_tolerance)
+        self.lower = np.array([0.0] * (self.nr_of_modes * 3 - 1))
+        self.upper = np.array([1.0] * (self.nr_of_modes * 3 - 1))
+
+    def __call__(self, x: np.ndarray) -> float:
+        internal_x = self.reals_to_internal(x)
+        return super().__call__(internal_x)
+
+    def initialize(self) -> np.ndarray:
+        internal_x = super().initialize()
+        return self.internal_to_reals(internal_x)
+
+    def reals_to_internal(self, x: np.ndarray) -> np.ndarray:
+        # Scale weights to simplex:
+        weights = x[: self.nr_of_modes - 1]
+        internal_weights = reals_to_simplex(weights)
+        # Scale sds linearly:
+        sds = x[self.nr_of_modes - 1 : 2 * self.nr_of_modes - 1]
+        internal_sds = scale_linearly(
+            sds,
+            self.lower[self.nr_of_modes - 1 : 2 * self.nr_of_modes - 1],
+            self.upper[self.nr_of_modes - 1 : 2 * self.nr_of_modes - 1],
+            self.data_lower[self.nr_of_modes : 2 * self.nr_of_modes],
+            self.data_upper[self.nr_of_modes : 2 * self.nr_of_modes],
+        )
+        # Scale means using offset and full simplex:
+        means = x[2 * self.nr_of_modes - 1 :]
+        internal_means = scale_linearly(
+            reals_to_reals_with_offset(reals_to_full_simplex(means)),
+            self.lower[2 * self.nr_of_modes - 1 :],
+            self.upper[2 * self.nr_of_modes - 1 :],
+            self.data_lower[2 * self.nr_of_modes :],
+            self.data_upper[2 * self.nr_of_modes :],
+        )
+        return np.concatenate([internal_weights, internal_sds, internal_means])
+
+    def internal_to_reals(self, x: np.ndarray) -> np.ndarray:
+        # Scale weights from simplex:
+        internal_weights = x[: self.nr_of_modes]
+        weights = simplex_to_reals(internal_weights)
+        # Scale sds linearly:
+        internal_sds = x[self.nr_of_modes : 2 * self.nr_of_modes]
+        sds = scale_linearly(
+            internal_sds,
+            self.data_lower[self.nr_of_modes : 2 * self.nr_of_modes],
+            self.data_upper[self.nr_of_modes : 2 * self.nr_of_modes],
+            self.lower[self.nr_of_modes - 1 : 2 * self.nr_of_modes - 1],
+            self.upper[self.nr_of_modes - 1 : 2 * self.nr_of_modes - 1],
+        )
+        # Scale means using offset and full simplex:
+        internal_means = x[2 * self.nr_of_modes :]
+        means = scale_linearly(
+            internal_means,
+            self.data_lower[2 * self.nr_of_modes :],
+            self.data_upper[2 * self.nr_of_modes :],
+            self.lower[2 * self.nr_of_modes - 1 :],
+            self.upper[2 * self.nr_of_modes - 1 :],
+        )
+        means = full_simplex_to_reals(reals_with_offset_to_reals(means))
+        return np.concatenate([weights, sds, means])
