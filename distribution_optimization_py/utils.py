@@ -4,19 +4,14 @@ from scipy.stats import norm
 DEFAULT_NR_OF_BINS = 10
 
 
-def cdf_mixtures(
-    kernel: np.ndarray, means: np.ndarray, sds: np.ndarray, weights: np.ndarray
-) -> np.ndarray:
+def cdf_mixtures(kernel: np.ndarray, means: np.ndarray, sds: np.ndarray, weights: np.ndarray) -> np.ndarray:
     cdf_values = []
     for mean_, sd_ in zip(means, sds):
         cdf_values.append(norm.cdf(kernel, mean_, sd_))
-    cdf_values = np.array(cdf_values)
-    return cdf_values.T @ weights
+    return np.array(cdf_values).T @ weights
 
 
-def bin_prob_for_mixtures(
-    means: np.ndarray, sds: np.ndarray, weights: np.ndarray, breaks: np.ndarray
-) -> np.ndarray:
+def bin_prob_for_mixtures(means: np.ndarray, sds: np.ndarray, weights: np.ndarray, breaks: np.ndarray) -> np.ndarray:
     cdfs = cdf_mixtures(breaks, means, sds, weights)
     return cdfs[1:] - cdfs[:-1]
 
@@ -29,7 +24,7 @@ def std_dev_estimate(
     """
     Keating, J.P. (1999). A Primer on Density Estimation for the Great Home Run Race of '98.
     """
-    p = np.percentile(data, q=q, method=method)
+    p = np.percentile(data, q=q, method=method)  # type: ignore[call-overload]
     interquantile_range = p[1] - p[0]
     normalizing_constant = 1.349
     iqr_std_dev_estimate = interquantile_range / normalizing_constant
@@ -51,14 +46,3 @@ def optimal_no_bins(
             DEFAULT_NR_OF_BINS,
         )
     return DEFAULT_NR_OF_BINS
-
-
-def scale(
-    x: np.ndarray,
-    source_lower: np.ndarray,
-    source_upper: np.ndarray,
-    target_lower: np.ndarray,
-    target_upper: np.ndarray,
-) -> np.ndarray:
-    normalized_x = (x - source_lower) / (source_upper - source_lower)
-    return target_lower + normalized_x * (target_upper - target_lower)

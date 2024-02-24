@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.stats import norm
-from .utils import scale, optimal_no_bins, bin_prob_for_mixtures, DEFAULT_NR_OF_BINS
+
+from .scale import scale_linearly as scale
+from .utils import bin_prob_for_mixtures, optimal_no_bins
 
 INFINITY = 1000000
 DEFAULT_NR_OF_KERNELS = 40
@@ -23,9 +25,7 @@ class GaussianMixtureProblem:
         self.nr_of_bins = optimal_no_bins(data)
         self.breaks = np.linspace(np.min(data), np.max(data), self.nr_of_bins + 1)
         self.observed_bins, _ = np.histogram(data, self.breaks)
-        self.nr_of_kernels = (
-            nr_of_kernels  # Kernels are used to estimate the overlap error.
-        )
+        self.nr_of_kernels = nr_of_kernels  # Kernels are used to estimate the overlap error.
         self.overlap_tolerance = overlap_tolerance
         self.data_lower, self.data_upper = self.get_bounds()
         if lower is not None and upper is not None:
@@ -53,22 +53,22 @@ class GaussianMixtureProblem:
         x[: self.nr_of_modes] = x[: self.nr_of_modes] / np.sum(x[: self.nr_of_modes])
         means_order = np.argsort(x[2 * self.nr_of_modes :])
         x[: self.nr_of_modes] = x[: self.nr_of_modes][means_order]
-        x[self.nr_of_modes : 2 * self.nr_of_modes] = x[
-            self.nr_of_modes : 2 * self.nr_of_modes
-        ][means_order]
+        x[self.nr_of_modes : 2 * self.nr_of_modes] = x[self.nr_of_modes : 2 * self.nr_of_modes][means_order]
         x[2 * self.nr_of_modes :] = x[2 * self.nr_of_modes :][means_order]
         return x
 
-    def overlap_error_by_density(
-        self, means: np.ndarray, sds: np.ndarray, weights: np.ndarray
-    ) -> float:
+    def fix_and_scale(self, x: np.ndarray) -> np.ndarray:
+        if self.lower is not None and self.upper is not None:
+            x = scale(x, self.lower, self.upper, self.data_lower, self.data_upper)
+        x = self.fix(x)
+        if self.lower is not None and self.upper is not None:
+            x = scale(x, self.data_lower, self.data_upper, self.lower, self.upper)
+        x = np.clip(x, self.lower, self.upper)
+        return x
+
+    def overlap_error_by_density(self, means: np.ndarray, sds: np.ndarray, weights: np.ndarray) -> float:
         kernels = np.linspace(np.min(self.data), np.max(self.data), self.nr_of_kernels)
-        densities = np.array(
-            [
-                norm.pdf(kernels, loc=m, scale=sd) * w
-                for m, sd, w in zip(means, sds, weights)
-            ]
-        )
+        densities = np.array([norm.pdf(kernels, loc=m, scale=sd) * w for m, sd, w in zip(means, sds, weights)])
 
         overlap_in_component = np.zeros_like(densities)
         for i in range(len(means)):
@@ -83,12 +83,8 @@ class GaussianMixtureProblem:
 
         return error_overlap_component
 
-    def similarity_error(
-        self, means: np.ndarray, sds: np.ndarray, weights: np.ndarray
-    ) -> float:
-        estimated_bins = (
-            bin_prob_for_mixtures(means, sds, weights, self.breaks) * self.N
-        )
+    def similarity_error(self, means: np.ndarray, sds: np.ndarray, weights: np.ndarray) -> float:
+        estimated_bins = bin_prob_for_mixtures(means, sds, weights, self.breaks) * self.N
         norm = estimated_bins.copy()
         norm[norm < 1] = 1
         diffssq = np.power((self.observed_bins - estimated_bins), 2)
@@ -106,3 +102,44 @@ class GaussianMixtureProblem:
         lower = np.concatenate([weights_lower, sds_lower, means_lower])
         upper = np.concatenate([weights_upper, sds_upper, means_upper])
         return lower, upper
+
+    def scale_to_data_bounds(self, x: np.ndarray) -> np.ndarray:
+        scaled_x = scale(x, self.lower, self.upper, self.data_lower, self.data_upper)
+        return self.fix(scaled_x)
+
+    def initialize_equidistant(self, should_scale: bool | None = True) -> np.ndarray:
+        weights = np.random.uniform(
+            self.data_lower[: self.nr_of_modes],
+            self.data_upper[: self.nr_of_modes],
+            size=self.nr_of_modes,
+        )
+        sds = np.random.uniform(
+            0.0,
+            (np.max(self.data) - np.min(self.data)) / (self.nr_of_modes * 3),
+            size=self.nr_of_modes,
+        )
+        breaks = np.linspace(np.min(self.data), np.max(self.data), self.nr_of_modes + 2)[1:-1]
+        means = np.random.normal(
+            breaks,
+            (np.max(self.data) - np.min(self.data)) / (self.nr_of_modes * 5),
+            size=self.nr_of_modes,
+        )
+        weights = weights / np.sum(weights)
+        x = np.concatenate([weights, sds, means])
+        fixed_x = self.fix(x)
+        if not should_scale:
+            return fixed_x
+        scaled_x = scale(fixed_x, self.data_lower, self.data_upper, self.lower, self.upper)
+        scaled_x = np.minimum(np.maximum(scaled_x, self.lower), self.upper)
+        return scaled_x
+
+    def initialize(self) -> np.ndarray:
+        return self.initialize_equidistant()
+        # p = random.random()
+        # if p < 0.7:
+        #     return self.initialize_equidistant()
+        # else:
+        #     return np.random.uniform(self.lower[0], self.upper[0], self.nr_of_modes * 3)
+
+    def initialize_population(self, size: int) -> np.ndarray:
+        return np.array([self.initialize() for _ in range(size)])
