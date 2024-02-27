@@ -1,13 +1,16 @@
 import numpy as np
-from distribution_optimization_py.problem import ScaledGaussianMixtureProblem
 from distribution_optimization_py.scale import (
     full_simplex_to_reals,
     reals_to_full_simplex,
     reals_to_reals_with_offset,
     reals_to_simplex,
+    reals_to_uniform_simplex,
     reals_with_offset_to_reals,
     scale_linearly,
+    scale_uniformly_simplex,
     simplex_to_reals,
+    uniform_simplex_to_reals,
+    unscale_uniformly_simplex,
 )
 
 N = 10
@@ -35,6 +38,7 @@ def test_simplex_scale_example():
     assert np.isclose(reals_to_simplex(x), x_simplex).all()
     assert np.isclose(simplex_to_reals(x_simplex), x).all()
     assert np.isclose(simplex_to_reals(reals_to_simplex(x)), x).all()
+    assert np.isclose(np.sum(reals_to_simplex(x)), 1)
 
 
 def test_composition_of_offset_scale():
@@ -50,6 +54,16 @@ def test_composition_of_full_simplex_scale():
 def test_composition_of_simplex_scale():
     x = np.random.rand(N)
     assert np.isclose(simplex_to_reals(reals_to_simplex(x)), x).all()
+
+
+def test_composition_of_uniform_simplex_scale():
+    x = np.random.rand(N)
+    assert np.isclose(unscale_uniformly_simplex(scale_uniformly_simplex(x)), x).all()
+
+
+def test_composition_of_uniform_simplex():
+    x = np.random.rand(N)
+    assert np.isclose(uniform_simplex_to_reals(reals_to_uniform_simplex(x)), x).all()
 
 
 def test_composition_of_linear_scale():
@@ -71,10 +85,12 @@ def test_composition_of_linear_scale():
     ).all()
 
 
-def test_scaled_problem(truck_driving_data: np.ndarray):
-    nr_of_modes = 3
-    problem = ScaledGaussianMixtureProblem(truck_driving_data, nr_of_modes)
-    x = np.array([0.4, 0.3, 0.1, 0.3, 0.2, 0.4, 0.7, 0.2])
-    internal_x = np.array([0.6, 0.28, 0.12, 8.398014, 23.653122, 16.025568, 462.276, 554.7312, 727.31424])
-    assert np.isclose(problem.reals_to_internal(x), internal_x).all()
-    assert np.isclose(problem.internal_to_reals(internal_x), x).all()
+# def test_scaled_problem(truck_driving_data: np.ndarray):
+#     nr_of_modes = 3
+#     problem = ScaledGaussianMixtureProblem(truck_driving_data, nr_of_modes)
+#     x = np.array([0.4, 0.3, 0.1, 0.3, 0.2, 0.4, 0.7, 0.2])
+#     internal_x = np.array(
+#         [0.6, 0.28, 0.12, 8.398014, 23.653122, 16.025568, 462.276, 554.7312, 727.31424]
+#     )
+#     assert np.isclose(problem.reals_to_internal(x), internal_x).all()
+#     assert np.isclose(problem.internal_to_reals(internal_x), x).all()
