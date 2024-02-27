@@ -8,13 +8,17 @@ from .scale import (
     reals_to_simplex,
     reals_with_offset_to_reals,
     scale_linearly,
+    scale_uniformly_simplex,
     simplex_to_reals,
+    unscale_uniformly_simplex,
 )
 from .utils import bin_prob_for_mixtures, optimal_no_bins
 
-INFINITY = 1000000
+INFINITY = 1000000  # TODO: use np.inf instead of 1000000
 DEFAULT_NR_OF_KERNELS = 40
 DEFAULT_OVERLAP_TOLERANCE = 0.5
+DEFAULT_LOWER = -5
+DEFAULT_UPPER = 5
 
 
 class GaussianMixtureProblem:
@@ -107,10 +111,6 @@ class GaussianMixtureProblem:
         return x
 
 
-DEFAULT_LOWER = -5
-DEFAULT_UPPER = 5
-
-
 class LinearlyScaledGaussianMixtureProblem(GaussianMixtureProblem):
     def __init__(
         self,
@@ -196,7 +196,7 @@ class ScaledGaussianMixtureProblem(GaussianMixtureProblem):
         # Scale means using offset and full simplex:
         means = x[2 * self.nr_of_modes - 1 :]
         internal_means = scale_linearly(
-            reals_to_reals_with_offset(reals_to_full_simplex(means)),
+            reals_to_reals_with_offset(reals_to_full_simplex(scale_uniformly_simplex(means))),
             self.lower[2 * self.nr_of_modes - 1 :],
             self.upper[2 * self.nr_of_modes - 1 :],
             self.data_lower[2 * self.nr_of_modes :],
@@ -226,5 +226,5 @@ class ScaledGaussianMixtureProblem(GaussianMixtureProblem):
             self.lower[2 * self.nr_of_modes - 1 :],
             self.upper[2 * self.nr_of_modes - 1 :],
         )
-        means = full_simplex_to_reals(reals_with_offset_to_reals(means))
+        means = unscale_uniformly_simplex(full_simplex_to_reals(reals_with_offset_to_reals(means)))
         return np.concatenate([weights, sds, means])
