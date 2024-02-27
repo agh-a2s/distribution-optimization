@@ -1763,6 +1763,33 @@ plugins = ["importlib-metadata"]
 windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
+name = "pyhms"
+version = "0.1.0"
+description = "The HMS (Hierarchic Memetic Strategy) is a composite global optimization strategy consisting of a multi-population evolutionary strategy and some auxiliary methods. The HMS makes use of a dynamically-evolving data structure that provides an organization among the component populations. It is a tree with a fixed maximal height and variable internal node degree. Each component population is governed by a particular evolutionary engine. This package provides a simple python implementation with examples of using different population engines."
+optional = false
+python-versions = "^3.10"
+files = []
+develop = false
+
+[package.dependencies]
+cma = ">=3.2.2"
+dill = "^0.3.8"
+leap-ec = ">=0.7.0"
+matplotlib = ">=3.5.1"
+numpy = ">=1.22.2"
+scipy = ">=1.8.0"
+setuptools = ">=63.2.0"
+structlog = "^24.1.0"
+toolz = ">=0.11.2"
+treelib = ">=1.7.0"
+
+[package.source]
+type = "git"
+url = "https://github.com/maciejsmolka/pyhms.git"
+reference = "HEAD"
+resolved_reference = "47c1f75e2cfef368692c6f96ab0c8f3a7ace8946"
+
+[[package]]
 name = "pyparsing"
 version = "3.1.1"
 description = "pyparsing module - Classes and methods to define and execute parsing grammars"
@@ -2495,4 +2522,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "b798496303569cc0bb2c2edbe8dc75cade8b41b1829ea45b8b28bd410f29aa53"
+content-hash = "b580992935aec62ab0150e4878e391ec48fdea2482a0aa8c78e348db7e359461"

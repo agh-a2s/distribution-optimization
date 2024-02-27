@@ -63,6 +63,7 @@ def test_composition_of_uniform_simplex_scale():
 
 def test_composition_of_uniform_simplex():
     x = np.random.rand(N)
+    assert np.isclose(reals_to_uniform_simplex(x), reals_to_simplex(scale_uniformly_simplex(x))).all()
     assert np.isclose(uniform_simplex_to_reals(reals_to_uniform_simplex(x)), x).all()
 
 

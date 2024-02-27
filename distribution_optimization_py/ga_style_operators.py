@@ -3,6 +3,7 @@ from typing import Iterator
 import leap_ec.ops as lops
 import numpy as np
 from leap_ec.util import wrap_curry
+from pyhms.demes.single_pop_eas.sea import SimpleEA
 
 
 @wrap_curry
@@ -93,3 +94,57 @@ class ArithmeticCrossover(lops.Crossover):
             parent_a.genome = self.fix(parent_a.genome)
             parent_b.genome = self.fix(parent_b.genome)
         return parent_a, parent_b
+
+
+class GAStyleEA(SimpleEA):
+    """
+    An implementation of SEA using LEAP.
+    """
+
+    def __init__(
+        self,
+        generations,
+        problem,
+        bounds,
+        pop_size,
+        k_elites=1,
+        representation=None,
+        p_mutation=1,
+        p_crossover=1,
+    ) -> None:
+        super().__init__(
+            generations,
+            problem,
+            bounds,
+            pop_size,
+            pipeline=[
+                lops.tournament_selection,
+                lops.clone,
+                ArithmeticCrossover(
+                    p_xover=p_crossover,
+                ),
+                mutate_uniform(
+                    bounds=bounds,
+                    p_mutate=p_mutation,
+                ),
+                lops.evaluate,
+                lops.pool(size=pop_size),
+            ],
+            k_elites=k_elites,
+            representation=representation,
+        )
+
+    @classmethod
+    def create(cls, generations, problem, bounds, pop_size, **kwargs):
+        k_elites = kwargs.get("k_elites") or 1
+        p_mutation = kwargs.get("p_mutation") or 0.9
+        p_crossover = kwargs.get("p_crossover") or 0.9
+        return cls(
+            generations=generations,
+            problem=problem,
+            bounds=bounds,
+            pop_size=pop_size,
+            k_elites=k_elites,
+            p_mutation=p_mutation,
+            p_crossover=p_crossover,
+        )
