@@ -84,14 +84,3 @@ def test_composition_of_linear_scale():
         ),
         x,
     ).all()
-
-
-# def test_scaled_problem(truck_driving_data: np.ndarray):
-#     nr_of_modes = 3
-#     problem = ScaledGaussianMixtureProblem(truck_driving_data, nr_of_modes)
-#     x = np.array([0.4, 0.3, 0.1, 0.3, 0.2, 0.4, 0.7, 0.2])
-#     internal_x = np.array(
-#         [0.6, 0.28, 0.12, 8.398014, 23.653122, 16.025568, 462.276, 554.7312, 727.31424]
-#     )
-#     assert np.isclose(problem.reals_to_internal(x), internal_x).all()
-#     assert np.isclose(problem.internal_to_reals(internal_x), x).all()
