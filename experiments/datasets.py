@@ -1,6 +1,7 @@
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass
 
 
 def read_dataset_from_csv(path: str, column: str | None = "value") -> np.ndarray:
