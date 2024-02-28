@@ -2,6 +2,7 @@ from typing import Iterator
 
 import leap_ec.ops as lops
 import numpy as np
+from leap_ec.real_rep.ops import mutate_gaussian
 from leap_ec.util import wrap_curry
 from pyhms.demes.single_pop_eas.sea import SimpleEA
 
@@ -144,6 +145,58 @@ class GAStyleEA(SimpleEA):
             problem=problem,
             bounds=bounds,
             pop_size=pop_size,
+            k_elites=k_elites,
+            p_mutation=p_mutation,
+            p_crossover=p_crossover,
+        )
+
+
+class CustomSEA(SimpleEA):
+    """
+    An implementation of SEA using LEAP.
+    """
+
+    def __init__(
+        self,
+        generations,
+        problem,
+        bounds,
+        pop_size,
+        mutation_std=1.0,
+        k_elites=1,
+        p_mutation=1,
+        p_crossover=0.5,
+        representation=None,
+    ) -> None:
+        super().__init__(
+            generations,
+            problem,
+            bounds,
+            pop_size,
+            pipeline=[
+                lops.tournament_selection,
+                lops.clone,
+                lops.UniformCrossover(p_xover=p_crossover),
+                mutate_gaussian(std=mutation_std, bounds=bounds, expected_num_mutations=p_mutation),
+                lops.evaluate,
+                lops.pool(size=pop_size),
+            ],
+            k_elites=k_elites,
+            representation=representation,
+        )
+
+    @classmethod
+    def create(cls, generations, problem, bounds, pop_size, **kwargs):
+        mutation_std = kwargs.get("mutation_std") or 1.0
+        k_elites = kwargs.get("k_elites") or 1
+        p_mutation = kwargs.get("p_mutation") or 1
+        p_crossover = kwargs.get("p_crossover") or 0.5
+        return cls(
+            generations=generations,
+            problem=problem,
+            bounds=bounds,
+            pop_size=pop_size,
+            mutation_std=mutation_std,
             k_elites=k_elites,
             p_mutation=p_mutation,
             p_crossover=p_crossover,
