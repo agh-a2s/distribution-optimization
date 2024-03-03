@@ -35,6 +35,10 @@ pre-commit = "^3.6.2"
 optuna = "^3.5.0"
 optuna-dashboard = "^0.14.0"
 scikit-learn = "^1.4.0"
+pytest-cov = "^4.1.0"
+
+[tool.poetry.group.dev]
+optional = true
 
 [build-system]
 requires = ["poetry-core"]
