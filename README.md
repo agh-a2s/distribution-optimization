@@ -11,17 +11,25 @@ import pandas as pd
 truck_driving_data = pd.read_csv("./data/truck_driving_data.csv")["value"].values
 ```
 
-Fit GMM:
+Fit GMM using HMS and plot results:
 
 ```python
 from distribution_optimization_py.gaussian_mixture import GaussianMixture
-gmm = GaussianMixture(n_components = 3)
+gmm = GaussianMixture(n_components=3, algorithm="HMS", random_state=42)
 gmm.fit(truck_driving_data)
 probabilities = gmm.predict_proba(truck_driving_data)
 gmm.plot()
 ```
 
 ![GMM Plot](images/plot.png)
+
+### Supported optimization algorithms
+
+| algorithm | Description                                                  | library   |
+|-----------|--------------------------------------------------------------|-----------|
+| "HMS"     | Hierarchic Memetic Strategy                                  | `pyhms`   |
+| "CMA-ES"  | Covariance Matrix Adaptation Evolution Strategy              | `pycma`   |
+| "GA"      | Genetic Algorithm using operators inspired by R package `GA` | `leap_ec` |
 
 ### Relevant literature
 - Lerch, F., Ultsch, A. & Lötsch, J. Distribution Optimization: An evolutionary algorithm to separate Gaussian mixtures. Sci Rep 10, 648 (2020). doi: [10.1038/s41598-020-57432-w](https://doi.org/10.1038/s41598-020-57432-w)
