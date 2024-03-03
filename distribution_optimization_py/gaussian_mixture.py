@@ -1,5 +1,6 @@
 from typing import Type
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from .problem import ScaledGaussianMixtureProblem
@@ -36,6 +37,7 @@ class GaussianMixture:
         problem = ScaledGaussianMixtureProblem(X, self._n_components)
         solution = self._solver(problem, self._max_n_evals, self._random_state)
         scaled_solution = problem.reals_to_internal(solution)
+        self._X = X
         self._weights = scaled_solution[: self._n_components]
         self._sds = scaled_solution[self._n_components : 2 * self._n_components]
         self._means = scaled_solution[2 * self._n_components :]
@@ -47,6 +49,32 @@ class GaussianMixture:
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         return np.argmax(self.predict_proba(X), axis=1)
+
+    def score_samples(self, X: np.ndarray) -> np.ndarray:
+        likelihood = np.array([mixture_probability(x, self._means, self._sds, self._weights, False) for x in X])
+        return np.sum(likelihood, axis=1)
+
+    def plot(self, num: int | None = 1000, bins: int | None = 30) -> None:
+        if self._weights is None:
+            raise ValueError("Model has not been fitted yet")
+
+        x = np.linspace(self._X.min(), self._X.max(), num)
+        pdf = self.score_samples(x)
+
+        plt.hist(
+            self._X,
+            bins=bins,
+            density=True,
+            alpha=0.6,
+            color="g",
+            label="Empirical Data",
+        )
+        plt.plot(x, pdf, "-r", label="GMM PDF")
+        plt.xlabel("Data Values")
+        plt.ylabel("Probability Density")
+        plt.legend(loc="upper left")
+        plt.title("Histogram and GMM PDF")
+        plt.show()
 
     def _validate_data(self, X: np.ndarray) -> np.ndarray:
         if not isinstance(X, np.ndarray):

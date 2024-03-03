@@ -18,7 +18,10 @@ from distribution_optimization_py.gaussian_mixture import GaussianMixture
 gmm = GaussianMixture(n_components = 3)
 gmm.fit(truck_driving_data)
 probabilities = gmm.predict_proba(truck_driving_data)
+gmm.plot()
 ```
+
+![GMM Plot](images/plot.png)
 
 ### Relevant literature
 - Lerch, F., Ultsch, A. & Lötsch, J. Distribution Optimization: An evolutionary algorithm to separate Gaussian mixtures. Sci Rep 10, 648 (2020). doi: [10.1038/s41598-020-57432-w](https://doi.org/10.1038/s41598-020-57432-w)

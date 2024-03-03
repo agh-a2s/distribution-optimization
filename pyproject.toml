@@ -24,6 +24,7 @@ python = "^3.10"
 numpy = "^1.26.3"
 scipy = "^1.11.4"
 pyhms = {git = "https://github.com/maciejsmolka/pyhms.git"}
+matplotlib = "^3.8.3"
 
 
 [tool.poetry.group.dev.dependencies]

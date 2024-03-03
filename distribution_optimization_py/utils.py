@@ -4,9 +4,17 @@ from scipy.stats import norm
 DEFAULT_NR_OF_BINS = 10
 
 
-def mixture_probability(x: np.ndarray, means: np.ndarray, sds: np.ndarray, weights: np.ndarray) -> np.ndarray:
+def mixture_probability(
+    x: np.ndarray,
+    means: np.ndarray,
+    sds: np.ndarray,
+    weights: np.ndarray,
+    normalize: bool | None = True,
+) -> np.ndarray:
     values = norm.pdf(x, means, sds) * weights
-    return values / np.sum(values)
+    if normalize:
+        return values / np.sum(values)
+    return values
 
 
 def cdf_mixtures(kernel: np.ndarray, means: np.ndarray, sds: np.ndarray, weights: np.ndarray) -> np.ndarray:
