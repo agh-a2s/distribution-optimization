@@ -42,9 +42,7 @@ class GaussianMixture:
         return self
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
-        probabilities = [
-            mixture_probability(x, self._means, self._sds, self._weights) for x in X
-        ]
+        probabilities = [mixture_probability(x, self._means, self._sds, self._weights) for x in X]
         return np.array(probabilities)
 
     def predict(self, X: np.ndarray) -> np.ndarray:

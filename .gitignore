@@ -1,6 +1,6 @@
 distribution_optimization_py/__pycache__/*
 experiments/results/*
 R/*
-*/__pycache__/*
+**/__pycache__/*
 .DS_Store
 */.DS_Store

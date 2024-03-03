@@ -2,19 +2,27 @@
 name = "distribution_optimization_py"
 version = "0.1.0"
 description = ""
-authors = ["WojtAcht <wachtelik@gmail.com>"]
+authors = ["Wojciech Achtelik <wachtelik@agh.edu.pl>"]
+license = "MIT"
 readme = "README.md"
+keywords = ["DistributionOptimization", "optimization", "HMS"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "Intended Audience :: Other Audience",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: MIT License",
+]
 
 [tool.poetry.dependencies]
 python = "^3.10"
 numpy = "^1.26.3"
 scipy = "^1.11.4"
-structlog = "^24.1.0"
-leap-ec = "^0.8.1"
-scikit-learn = "^1.4.0"
-optuna = "^3.5.0"
-optuna-dashboard = "^0.14.0"
-dill = "^0.3.8"
 pyhms = {git = "https://github.com/maciejsmolka/pyhms.git"}
 
 
@@ -23,12 +31,9 @@ pandas = "^2.1.4"
 ipykernel = "^6.29.0"
 pytest = "^8.0.1"
 pre-commit = "^3.6.2"
-
-
-
-[tool.poetry.group.hmspy.dependencies]
-cma = "^3.3.0"
-treelib = "^1.7.0"
+optuna = "^3.5.0"
+optuna-dashboard = "^0.14.0"
+scikit-learn = "^1.4.0"
 
 [build-system]
 requires = ["poetry-core"]

@@ -107,9 +107,13 @@ SOLUTIONS_WITH_FITNESS_VALUES_CALCULATED_IN_R = [
     "x,expected_fitness_value",
     SOLUTIONS_WITH_FITNESS_VALUES_CALCULATED_IN_R,
 )
-def test_gaussian_mixture_problem(x: np.ndarray, expected_fitness_value: float, truck_driving_data: np.ndarray):
-    nr_of_modes = 3
-    problem = GaussianMixtureProblem(truck_driving_data, nr_of_modes)
+def test_gaussian_mixture_problem(
+    x: np.ndarray,
+    expected_fitness_value: float,
+    truck_driving_data: np.ndarray,
+    truck_driving_nr_of_modes: int,
+):
+    problem = GaussianMixtureProblem(truck_driving_data, truck_driving_nr_of_modes)
     assert np.isclose(problem(x), expected_fitness_value, atol=1e-4)
 
 
@@ -118,26 +122,35 @@ def test_gaussian_mixture_problem(x: np.ndarray, expected_fitness_value: float, 
     SOLUTIONS_WITH_FITNESS_VALUES_CALCULATED_IN_R,
 )
 def test_linearly_scaled_gaussian_mixture_problem(
-    x: np.ndarray, expected_fitness_value: float, truck_driving_data: np.ndarray
+    x: np.ndarray,
+    expected_fitness_value: float,
+    truck_driving_data: np.ndarray,
+    truck_driving_nr_of_modes: int,
 ):
-    nr_of_modes = 3
     LOWER = -5
     UPPER = 5
-    problem = LinearlyScaledGaussianMixtureProblem(truck_driving_data, nr_of_modes, lower=LOWER, upper=UPPER)
+    problem = LinearlyScaledGaussianMixtureProblem(
+        truck_driving_data, truck_driving_nr_of_modes, lower=LOWER, upper=UPPER
+    )
     scaled_x = scale_linearly(x, problem.data_lower, problem.data_upper, problem.lower, problem.upper)
     assert np.isclose(problem(scaled_x), expected_fitness_value, atol=1e-4)
 
 
-def test_gaussian_mixture_problem_bounds(truck_driving_data: np.ndarray):
-    nr_of_modes = 3
-    problem = GaussianMixtureProblem(truck_driving_data, nr_of_modes)
+def test_gaussian_mixture_problem_bounds(truck_driving_data: np.ndarray, truck_driving_nr_of_modes: int):
+    problem = GaussianMixtureProblem(truck_driving_data, truck_driving_nr_of_modes)
     lower, upper = problem.get_bounds()
-    assert lower.shape == (nr_of_modes * 3,)
-    assert upper.shape == (nr_of_modes * 3,)
+    assert lower.shape == (truck_driving_nr_of_modes * 3,)
+    assert upper.shape == (truck_driving_nr_of_modes * 3,)
     assert np.all(lower < upper)
-    assert (lower[:nr_of_modes] == 0.03).all()
-    assert (upper[:nr_of_modes] == 1.00).all()
-    assert (lower[nr_of_modes : 2 * nr_of_modes] == 0.001 * (truck_driving_data.max() - truck_driving_data.min())).all()
-    assert (upper[nr_of_modes : 2 * nr_of_modes] == 0.1 * (truck_driving_data.max() - truck_driving_data.min())).all()
-    assert (lower[2 * nr_of_modes :] == truck_driving_data.min()).all()
-    assert (upper[2 * nr_of_modes :] == truck_driving_data.max()).all()
+    assert (lower[:truck_driving_nr_of_modes] == 0.03).all()
+    assert (upper[:truck_driving_nr_of_modes] == 1.00).all()
+    assert (
+        lower[truck_driving_nr_of_modes : 2 * truck_driving_nr_of_modes]
+        == 0.001 * (truck_driving_data.max() - truck_driving_data.min())
+    ).all()
+    assert (
+        upper[truck_driving_nr_of_modes : 2 * truck_driving_nr_of_modes]
+        == 0.1 * (truck_driving_data.max() - truck_driving_data.min())
+    ).all()
+    assert (lower[2 * truck_driving_nr_of_modes :] == truck_driving_data.min()).all()
+    assert (upper[2 * truck_driving_nr_of_modes :] == truck_driving_data.max()).all()
