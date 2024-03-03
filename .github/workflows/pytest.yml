@@ -2,10 +2,17 @@ name: Test
 on:
   workflow_dispatch:
   workflow_call:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  push:
     branches:
       - master
+    paths:
+      - pyproject.toml
+      - poetry.lock
+      - "distribution_optimization_py/**"
+      - "tests/**"
+      - .github/workflows/pytest.yml
+  pull_request:
+    types: [opened, synchronize, reopened]
     paths:
       - pyproject.toml
       - poetry.lock
