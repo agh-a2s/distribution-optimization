@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.stats import norm
+from sklearn.cluster import KMeans
 
 from .scale import (
     full_simplex_to_reals,
@@ -19,6 +20,14 @@ DEFAULT_NR_OF_KERNELS = 40
 DEFAULT_OVERLAP_TOLERANCE = 0.5
 DEFAULT_LOWER = -5
 DEFAULT_UPPER = 5
+
+
+def initialize_parameters(X: np.ndarray, nr_of_modes: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    labels = KMeans(n_clusters=nr_of_modes).fit(X.reshape(-1, 1)).labels_
+    means = np.array([X[labels == i].mean() for i in range(nr_of_modes)])
+    stds = np.array([X[labels == i].std() for i in range(nr_of_modes)])
+    weights = np.array([np.mean(labels == i) for i in range(nr_of_modes)])
+    return weights, stds, means
 
 
 class GaussianMixtureProblem:
@@ -110,6 +119,15 @@ class GaussianMixtureProblem:
         x = np.minimum(np.maximum(x, self.data_lower), self.data_upper)
         return x
 
+    def initialize_warm_start(self) -> np.ndarray:
+        weights, sds, means = initialize_parameters(self.data, self.nr_of_modes)
+        means_order = np.argsort(means)
+        weights = weights[means_order]
+        sds = sds[means_order]
+        means = means[means_order]
+        x = np.concatenate([weights, sds, means])
+        return np.minimum(np.maximum(x, self.data_lower), self.data_upper)
+
 
 class LinearlyScaledGaussianMixtureProblem(GaussianMixtureProblem):
     def __init__(
@@ -178,6 +196,10 @@ class ScaledGaussianMixtureProblem(GaussianMixtureProblem):
 
     def initialize(self) -> np.ndarray:
         internal_x = super().initialize()
+        return self.internal_to_reals(internal_x)
+
+    def initialize_warm_start(self) -> np.ndarray:
+        internal_x = super().initialize_warm_start()
         return self.internal_to_reals(internal_x)
 
     def reals_to_internal(self, x: np.ndarray) -> np.ndarray:
