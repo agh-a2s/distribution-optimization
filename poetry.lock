@@ -1804,6 +1804,17 @@ files = [
 tests = ["pytest"]
 
 [[package]]
+name = "pyade-python"
+version = "1.1"
+description = "A Python Advanced Differential Evolution algorithms library"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pyade-python-1.1.tar.gz", hash = "sha256:dc90529274ef1b1eb163d14f6c360ef7902f3c771dde3007ab77e128fd13fa53"},
+    {file = "pyade_python-1.1-py3-none-any.whl", hash = "sha256:c3fed6001a8f927a7c20a5ea7e87fea3fd69323e1dabbc18b94bf41adb32e719"},
+]
+
+[[package]]
 name = "pycparser"
 version = "2.21"
 description = "C parser in Python"
@@ -2607,4 +2618,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "56ce03ae4596ef92cb7373bef2de136da1925dd178ecad94ae8c6e6bcc6efc8f"
+content-hash = "6fdcf6c1f3c37f73a1551a879eba15c32fccf1518211dde03c0fb87476e898a3"

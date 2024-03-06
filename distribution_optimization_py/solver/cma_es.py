@@ -26,7 +26,8 @@ class CMAESSolver(Solver):
                 "bounds": [problem.lower, problem.upper],
                 "verbose": -9,
                 "seed": random_state,
+                "maxfevals": max_n_evals,
             },
         )
-        cma.optimize(problem, iterations=max_n_evals // 10)
+        cma.optimize(problem)
         return cma.result.xbest

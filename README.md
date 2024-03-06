@@ -30,6 +30,7 @@ gmm.plot()
 | "HMS"     | Hierarchic Memetic Strategy                                  | `pyhms`   |
 | "CMA-ES"  | Covariance Matrix Adaptation Evolution Strategy              | `pycma`   |
 | "GA"      | Genetic Algorithm using operators inspired by R package `GA` | `leap_ec` |
+| "DE"    | Differential Evolution iL-SHADE                                | `pyade.ilshade` |
 
 ### Relevant literature
 - Lerch, F., Ultsch, A. & Lötsch, J. Distribution Optimization: An evolutionary algorithm to separate Gaussian mixtures. Sci Rep 10, 648 (2020). doi: [10.1038/s41598-020-57432-w](https://doi.org/10.1038/s41598-020-57432-w)
