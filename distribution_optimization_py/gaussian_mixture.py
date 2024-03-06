@@ -4,13 +4,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from .problem import ScaledGaussianMixtureProblem
-from .solver import CMAESSolver, GASolver, HMSSolver, Solver
+from .solver import CMAESSolver, DESolver, GASolver, HMSSolver, Solver
 from .utils import mixture_probability
 
 SOLVER_NAME_TO_CLASS: dict[str, Type[Solver]] = {
     "GA": GASolver,
     "CMA-ES": CMAESSolver,
     "HMS": HMSSolver,
+    "DE": DESolver,
 }
 
 
@@ -76,6 +77,13 @@ class GaussianMixture:
         plt.title("Histogram and GMM PDF")
         plt.show()
 
+    def set_params(self, X: np.ndarray, solution: np.ndarray) -> "GaussianMixture":
+        self._X = X
+        self._weights = solution[: self._n_components]
+        self._sds = solution[self._n_components : 2 * self._n_components]
+        self._means = solution[2 * self._n_components :]
+        return self
+
     def _validate_data(self, X: np.ndarray) -> np.ndarray:
         if not isinstance(X, np.ndarray):
             raise ValueError("X must be a numpy array")
@@ -87,3 +95,33 @@ class GaussianMixture:
         if algorithm not in SOLVER_NAME_TO_CLASS:
             raise ValueError(f"'algorithm' must be one of {list(SOLVER_NAME_TO_CLASS)}")
         return algorithm
+
+
+def compare_solutions(
+    X: np.ndarray,
+    nr_of_modes: int,
+    solution1: np.ndarray,
+    solution2: np.ndarray,
+    label1: str,
+    label2: str,
+    num: int | None = 1000,
+    bins: int | None = 30,
+) -> None:
+    gmm1 = GaussianMixture(n_components=nr_of_modes, random_state=1).set_params(X, solution1)
+    gmm2 = GaussianMixture(n_components=nr_of_modes, random_state=1).set_params(X, solution2)
+    x = np.linspace(X.min(), X.max(), num)
+    pdf1 = gmm1.score_samples(x)
+    pdf2 = gmm2.score_samples(x)
+    plt.hist(
+        X,
+        bins=bins,
+        density=True,
+        alpha=0.6,
+        color="g",
+        label="Empirical Data",
+    )
+    plt.plot(x, pdf1, "--", label=label1, color="r")
+    plt.plot(x, pdf2, "--", label=label2, color="b")
+    plt.legend(loc="upper left")
+    plt.title("Histogram and GMM PDF")
+    plt.show()
