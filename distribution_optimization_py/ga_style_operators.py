@@ -2,9 +2,15 @@ from typing import Iterator
 
 import leap_ec.ops as lops
 import numpy as np
+from leap_ec import Individual
+from leap_ec.problem import FunctionProblem
 from leap_ec.real_rep.ops import mutate_gaussian
 from leap_ec.util import wrap_curry
 from pyhms.demes.single_pop_eas.sea import SimpleEA
+from pyhms.problem import EvalCutoffProblem
+from toolz import pipe
+
+from .problem import GaussianMixtureProblem
 
 
 @wrap_curry
@@ -112,6 +118,7 @@ class GAStyleEA(SimpleEA):
         representation=None,
         p_mutation=1,
         p_crossover=1,
+        use_warm_start=True,
     ) -> None:
         super().__init__(
             generations,
@@ -134,6 +141,26 @@ class GAStyleEA(SimpleEA):
             k_elites=k_elites,
             representation=representation,
         )
+        self._use_warm_start = use_warm_start
+
+    def run(self, parents: list[Individual] | None = None) -> list[Individual]:
+        if parents is None:
+            pop_size = self.pop_size if not self._use_warm_start else self.pop_size - 1
+            parents = self.representation.create_population(pop_size=pop_size, problem=self.problem)
+            if self._use_warm_start:
+                x0: np.ndarray
+                if isinstance(self.problem, GaussianMixtureProblem):
+                    x0 = self.problem.initialize_warm_start()
+                elif isinstance(self.problem, FunctionProblem):
+                    x0 = self.problem.fitness_function.initialize_warm_start()
+                elif isinstance(self.problem, EvalCutoffProblem):
+                    x0 = self.problem._inner.fitness_function.initialize_warm_start()
+                parents.append(Individual(genome=x0, problem=self.problem))
+            parents = Individual.evaluate_population(parents)
+        else:
+            assert self.pop_size == len(parents)
+
+        return pipe(parents, *self.pipeline, lops.elitist_survival(parents=parents, k=self.k_elites))
 
     @classmethod
     def create(cls, generations, problem, bounds, pop_size, **kwargs):
