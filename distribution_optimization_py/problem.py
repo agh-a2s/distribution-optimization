@@ -250,3 +250,99 @@ class ScaledGaussianMixtureProblem(GaussianMixtureProblem):
         )
         means = unscale_uniformly_simplex(full_simplex_to_reals(reals_with_offset_to_reals(means)))
         return np.concatenate([weights, sds, means])
+
+
+BBOB_LOWER = -5
+BBOB_UPPER = 5
+
+
+class ScaledGaussianMixtureProblemForELA(ScaledGaussianMixtureProblem):
+    def __init__(
+        self,
+        data: np.ndarray,
+        nr_of_modes: int,
+        nr_of_kernels: int | None = DEFAULT_NR_OF_KERNELS,
+        overlap_tolerance: float | None = DEFAULT_OVERLAP_TOLERANCE,
+    ):
+        super().__init__(data, nr_of_modes, nr_of_kernels, overlap_tolerance)
+        self.base_lower = np.array([0.0] * (self.nr_of_modes * 3 - 1))
+        self.base_upper = np.array([1.0] * (self.nr_of_modes * 3 - 1))
+        self.lower = np.array([BBOB_LOWER] * (self.nr_of_modes * 3 - 1))
+        self.upper = np.array([BBOB_UPPER] * (self.nr_of_modes * 3 - 1))
+
+    def reals_to_internal(self, x: np.ndarray) -> np.ndarray:
+        # Scale weights to simplex:
+        weights = x[: self.nr_of_modes - 1]
+        weights = scale_linearly(
+            weights,
+            self.lower[: self.nr_of_modes - 1],
+            self.upper[: self.nr_of_modes - 1],
+            self.base_lower[: self.nr_of_modes - 1],
+            self.base_upper[: self.nr_of_modes - 1],
+        )
+        internal_weights = reals_to_uniform_simplex(weights)
+        # Scale sds linearly:
+        sds = x[self.nr_of_modes - 1 : 2 * self.nr_of_modes - 1]
+        internal_sds = scale_linearly(
+            sds,
+            self.lower[self.nr_of_modes - 1 : 2 * self.nr_of_modes - 1],
+            self.upper[self.nr_of_modes - 1 : 2 * self.nr_of_modes - 1],
+            self.data_lower[self.nr_of_modes : 2 * self.nr_of_modes],
+            self.data_upper[self.nr_of_modes : 2 * self.nr_of_modes],
+        )
+        # Scale means using offset and full simplex:
+        means = x[2 * self.nr_of_modes - 1 :]
+        means = scale_linearly(
+            means,
+            self.lower[2 * self.nr_of_modes - 1 :],
+            self.upper[2 * self.nr_of_modes - 1 :],
+            self.base_lower[2 * self.nr_of_modes - 1 :],
+            self.base_upper[2 * self.nr_of_modes - 1 :],
+        )
+        internal_means = scale_linearly(
+            reals_to_reals_with_offset(reals_to_full_simplex(scale_uniformly_simplex(means))),
+            self.base_lower[2 * self.nr_of_modes - 1 :],
+            self.base_upper[2 * self.nr_of_modes - 1 :],
+            self.data_lower[2 * self.nr_of_modes :],
+            self.data_upper[2 * self.nr_of_modes :],
+        )
+        return np.concatenate([internal_weights, internal_sds, internal_means])
+
+    def internal_to_reals(self, x: np.ndarray) -> np.ndarray:
+        # Scale weights from simplex:
+        internal_weights = x[: self.nr_of_modes]
+        weights = uniform_simplex_to_reals(internal_weights)
+        weights = scale_linearly(
+            weights,
+            self.base_lower[: self.nr_of_modes],
+            self.base_upper[: self.nr_of_modes],
+            self.lower[: self.nr_of_modes],
+            self.upper[: self.nr_of_modes],
+        )
+        # Scale sds linearly:
+        internal_sds = x[self.nr_of_modes : 2 * self.nr_of_modes]
+        sds = scale_linearly(
+            internal_sds,
+            self.data_lower[self.nr_of_modes : 2 * self.nr_of_modes],
+            self.data_upper[self.nr_of_modes : 2 * self.nr_of_modes],
+            self.lower[self.nr_of_modes - 1 : 2 * self.nr_of_modes - 1],
+            self.upper[self.nr_of_modes - 1 : 2 * self.nr_of_modes - 1],
+        )
+        # Scale means using offset and full simplex:
+        internal_means = x[2 * self.nr_of_modes :]
+        means = scale_linearly(
+            internal_means,
+            self.data_lower[2 * self.nr_of_modes :],
+            self.data_upper[2 * self.nr_of_modes :],
+            self.base_lower[2 * self.nr_of_modes - 1 :],
+            self.base_upper[2 * self.nr_of_modes - 1 :],
+        )
+        means = unscale_uniformly_simplex(full_simplex_to_reals(reals_with_offset_to_reals(means)))
+        means = scale_linearly(
+            means,
+            self.base_lower[2 * self.nr_of_modes - 1 :],
+            self.base_upper[2 * self.nr_of_modes - 1 :],
+            self.lower[2 * self.nr_of_modes - 1 :],
+            self.upper[2 * self.nr_of_modes - 1 :],
+        )
+        return np.concatenate([weights, sds, means])
