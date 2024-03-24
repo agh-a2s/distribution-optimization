@@ -40,7 +40,7 @@ gmm.plot()
 |-----------|--------------------------------------------------------------|-----------|
 | "HMS"     | Hierarchic Memetic Strategy                                  | `pyhms`   |
 | "CMA-ES"  | Covariance Matrix Adaptation Evolution Strategy              | `pycma`   |
-| "GA"      | Genetic Algorithm using operators inspired by R package `GA` | `leap_ec` |
+| "GA"      | DistributionOptimization evolutionary algorithm              | `leap_ec` |
 | "DE"    | Differential Evolution iL-SHADE                                | `pyade.ilshade` |
 
 ### Relevant literature
