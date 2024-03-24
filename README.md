@@ -7,6 +7,11 @@ A Gaussian Mixture Model (GMM) is a probabilistic model that assumes all the dat
 The results of the experiments can be found on the `ela-analysis` branch.
 
 ### Quick start
+Install:
+
+```
+pip install git+https://github.com/WojtAcht/distribution-optimization-py
+```
 
 Create dataset:
 
