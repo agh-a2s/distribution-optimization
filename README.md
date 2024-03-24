@@ -4,15 +4,22 @@ A Gaussian Mixture Model (GMM) is a probabilistic model that assumes all the dat
 
 ### Experiment results
 
-The results of the experiments can be found on the `ela-analysis`` branch.
+The results of the experiments can be found on the `ela-analysis` branch.
 
 ### Quick start
 
-Read data (LKWFahrzeitSeehafen2010 - Truck driving time seaport 2010):
+Create dataset:
 
 ```python
-import pandas as pd
-truck_driving_data = pd.read_csv("./data/truck_driving_data.csv")["value"].values
+import numpy as np
+random_state = np.random.RandomState(seed=1)
+textbook_data = np.concatenate(
+    [
+        random_state.normal(-1, 1.5, 350),
+        random_state.normal(0, 1, 500),
+        random_state.normal(3, 0.5, 150),
+    ]
+)
 ```
 
 Fit GMM using HMS and plot results:
@@ -20,8 +27,8 @@ Fit GMM using HMS and plot results:
 ```python
 from distribution_optimization_py.gaussian_mixture import GaussianMixture
 gmm = GaussianMixture(n_components=3, algorithm="HMS", random_state=42)
-gmm.fit(truck_driving_data)
-probabilities = gmm.predict_proba(truck_driving_data)
+gmm.fit(textbook_data)
+probabilities = gmm.predict_proba(textbook_data)
 gmm.plot()
 ```
 

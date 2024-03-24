@@ -8,8 +8,8 @@ from pyhms.problem import EvalCutoffProblem
 from pyhms.sprout.sprout_filters import DemeLimit, LevelLimit, NBC_FarEnough
 from pyhms.sprout.sprout_generators import NBC_Generator
 from pyhms.sprout.sprout_mechanisms import SproutMechanism
-from pyhms.stop_conditions.gsc import singular_problem_eval_limit_reached
-from pyhms.stop_conditions.usc import dont_stop, metaepoch_limit
+from pyhms.stop_conditions.gsc import SingularProblemEvalLimitReached
+from pyhms.stop_conditions.usc import DontStop, MetaepochLimit
 from pyhms.tree import DemeTree
 
 from ..ga_style_operators import GAStyleEA
@@ -17,18 +17,19 @@ from ..problem import ScaledGaussianMixtureProblem
 from .protocol import Solver
 
 HMS_CONFIG = {
-    "nbc_cut": 3.599711774779532,
-    "nbc_trunc": 0.8995919493637037,
-    "nbc_far": 3.490948090512303,
-    "level_limit": 2,
-    "pop1": 22,
-    "p_mutation1": 0.8574418205037987,
-    "p_crossover1": 0.6800376375407469,
+    "nbc_cut": 3.7963357241892517,
+    "nbc_trunc": 0.7854441324546146,
+    "nbc_far": 3.698180094782821,
+    "level_limit": 4,
+    "pop1": 49,
+    "p_mutation1": 0.21707882439727,
+    "p_crossover1": 0.20534306545391615,
     "k_elites1": 1,
-    "generations1": 2,
-    "generations2": 25,
-    "metaepoch2": 39,
-    "sigma2": 1.3620228921127224,
+    "generations1": 5,
+    "generations2": 26,
+    "metaepoch2": 32,
+    "sigma2": 0.11230013378964185,
+    "use_warm_start": False,
 }
 
 
@@ -53,26 +54,28 @@ class HMSSolver(Solver):
                 problem=cutoff_problem,
                 bounds=bounds,
                 pop_size=HMS_CONFIG["pop1"],
-                lsc=dont_stop(),
+                lsc=DontStop(),
                 k_elites=HMS_CONFIG["k_elites1"],
                 representation=Representation(initialize=problem.initialize),
                 p_mutation=HMS_CONFIG["p_mutation1"],
                 p_crossover=HMS_CONFIG["p_crossover1"],
+                use_warm_start=HMS_CONFIG["use_warm_start"],
             ),
             CMALevelConfig(
                 problem=cutoff_problem,
                 bounds=bounds,
-                lsc=metaepoch_limit(HMS_CONFIG["metaepoch2"]),
+                lsc=MetaepochLimit(HMS_CONFIG["metaepoch2"]),
                 sigma0=HMS_CONFIG["sigma2"],
                 generations=HMS_CONFIG["generations2"],
             ),
         ]
+
         sprout = SproutMechanism(
             NBC_Generator(HMS_CONFIG["nbc_cut"], HMS_CONFIG["nbc_trunc"]),
             [NBC_FarEnough(HMS_CONFIG["nbc_far"], 2), DemeLimit(1)],
             [LevelLimit(HMS_CONFIG["level_limit"])],
         )
-        gsc = singular_problem_eval_limit_reached(max_n_evals)
+        gsc = SingularProblemEvalLimitReached(max_n_evals)
         tree_config = TreeConfig(levels_config, gsc, sprout, options)
         deme_tree = DemeTree(tree_config)
         deme_tree.run()
