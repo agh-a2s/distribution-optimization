@@ -8,8 +8,8 @@ from pyhms.problem import EvalCutoffProblem
 from pyhms.sprout.sprout_filters import DemeLimit, LevelLimit, NBC_FarEnough
 from pyhms.sprout.sprout_generators import NBC_Generator
 from pyhms.sprout.sprout_mechanisms import SproutMechanism
-from pyhms.stop_conditions.gsc import singular_problem_eval_limit_reached
-from pyhms.stop_conditions.usc import dont_stop, metaepoch_limit
+from pyhms.stop_conditions.gsc import SingularProblemEvalLimitReached
+from pyhms.stop_conditions.usc import DontStop, MetaepochLimit
 from pyhms.tree import DemeTree
 
 from ..ga_style_operators import GAStyleEA
@@ -53,7 +53,7 @@ class HMSSolver(Solver):
                 problem=cutoff_problem,
                 bounds=bounds,
                 pop_size=HMS_CONFIG["pop1"],
-                lsc=dont_stop(),
+                lsc=DontStop(),
                 k_elites=HMS_CONFIG["k_elites1"],
                 representation=Representation(initialize=problem.initialize),
                 p_mutation=HMS_CONFIG["p_mutation1"],
@@ -62,7 +62,7 @@ class HMSSolver(Solver):
             CMALevelConfig(
                 problem=cutoff_problem,
                 bounds=bounds,
-                lsc=metaepoch_limit(HMS_CONFIG["metaepoch2"]),
+                lsc=MetaepochLimit(HMS_CONFIG["metaepoch2"]),
                 sigma0=HMS_CONFIG["sigma2"],
                 generations=HMS_CONFIG["generations2"],
             ),
@@ -72,7 +72,7 @@ class HMSSolver(Solver):
             [NBC_FarEnough(HMS_CONFIG["nbc_far"], 2), DemeLimit(1)],
             [LevelLimit(HMS_CONFIG["level_limit"])],
         )
-        gsc = singular_problem_eval_limit_reached(max_n_evals)
+        gsc = SingularProblemEvalLimitReached(max_n_evals)
         tree_config = TreeConfig(levels_config, gsc, sprout, options)
         deme_tree = DemeTree(tree_config)
         deme_tree.run()

@@ -121,7 +121,6 @@ class GAStyleEA(SimpleEA):
         use_warm_start=True,
     ) -> None:
         super().__init__(
-            generations,
             problem,
             bounds,
             pop_size,
@@ -138,6 +137,7 @@ class GAStyleEA(SimpleEA):
                 lops.evaluate,
                 lops.pool(size=pop_size),
             ],
+            generations=generations,
             k_elites=k_elites,
             representation=representation,
         )
@@ -196,7 +196,6 @@ class CustomSEA(SimpleEA):
         representation=None,
     ) -> None:
         super().__init__(
-            generations,
             problem,
             bounds,
             pop_size,
@@ -208,6 +207,7 @@ class CustomSEA(SimpleEA):
                 lops.evaluate,
                 lops.pool(size=pop_size),
             ],
+            generations=generations,
             k_elites=k_elites,
             representation=representation,
         )
