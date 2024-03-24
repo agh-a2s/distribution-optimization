@@ -4,25 +4,11 @@ library(GA)
 library(ggplot2)
 library(tidyverse)
 
-load(
-  "~/Documents/studia/informatyka/semestr8/magisterka/distribution-optimization-hms/data/pain_free_steps.rda"
-)
+truck_driving_data <- read_csv("../data/truck_driving_data.csv")$value
 
-load(
-  "~/Documents/studia/informatyka/semestr8/magisterka/distribution-optimization-hms/data/LKWFahrzeitSeehafen2010.rda"
-)
+chromatogram_time <- read_csv("../data/chromatogram_time.csv")$value
 
-truck_driving_data <- LKWFahrzeitSeehafen2010
-
-load(
-  "~/Documents/studia/informatyka/semestr8/magisterka/distribution-optimization-hms/data/Chromatogram.rda"
-)
-chromatogram_time <- Chromatogram$Time
-
-load(
-  "~/Documents/studia/informatyka/semestr8/magisterka/distribution-optimization-hms/data/Mixture3.rda"
-)
-mixture3 <- Mixture3
+mixture3 <- read_csv("../data/mixture3.csv")$value
 
 textbook_data <- read_csv("../data/textbook_1k.csv")$value
 
@@ -224,7 +210,6 @@ load("../experiments/results_ga/ga_tuned_chromatogram_results.rda")
 save(ga_chromatogram_results, file = "../experiments/results_ga/ga_tuned_chromatogram_results.rda")
 
 PREFIX <- "../experiments/results_hms/"
-# SUFIX <- "ga_style_warm_start" # "ga_style_scaled_with_weights" # "new_tuned_30_fixed" # "de" # "tuned_30_mixture3" # "_new_tuned_30_fixed"
 hms_mixture3_results <-
   read_hms_results(mixture3, 3, "mixture3", PREFIX)
 hms_truck_driving_results <-

@@ -5,10 +5,7 @@ library(ggplot2)
 library(tidyverse)
 library(rBayesianOptimization)
 
-load(
-  "~/Documents/studia/informatyka/semestr8/magisterka/distribution-optimization-hms/data/Chromatogram.rda"
-)
-chromatogram_time <- Chromatogram$Time
+chromatogram_time <- read_csv("../data/chromatogram_time.csv")$value
 
 search_bounds <- list(
   PopulationSize = c(10, 250),
@@ -33,9 +30,9 @@ fitness <- function(
     Iter = budget %/% PopulationSize + 10
     result <-
       DistributionOptimization(
-        Data, 
-        Modes, 
-        Iter = Iter, 
+        Data,
+        Modes,
+        Iter = Iter,
         Budget = budget,
         PopulationSize = PopulationSize,
         MutationRate = MutationRate,
@@ -58,5 +55,5 @@ bayes_optimization <-
     acq = "ucb"
   )
 
-# Best Parameters Found: 
-# Round = 86	PopulationSize = 39.21577	MutationRate = 0.7839187	CrossoverRate = 0.9000	Elitism = 0.08389597	Value = -0.0001112494 
+# Best Parameters Found:
+# Round = 86	PopulationSize = 39.21577	MutationRate = 0.7839187	CrossoverRate = 0.9000	Elitism = 0.08389597	Value = -0.0001112494
