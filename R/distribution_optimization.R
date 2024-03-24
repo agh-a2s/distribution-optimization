@@ -92,8 +92,8 @@ get_ga_results <- function(Data, Modes, budgets = BUDGETS) {
 }
 
 get_ga_solutions <- function(Data, Modes) {
-  seeds <- 1:30
-  budget <- 15000
+  seeds <- c(1)
+  budget <- 1000
   ga_results <- list()
   for (seed in seeds) {
     set.seed(seed)
@@ -137,7 +137,7 @@ plot_boxplots <-
       enframe(ga_results, name = "n_eval", value = "scores") %>%
       unnest(scores) %>%
       mutate(algorithm = "DistributionOptimization")
-    
+
     data_hms <-
       enframe(hms_results, name = "n_eval", value = "scores") %>%
       unnest(scores) %>%
@@ -161,22 +161,22 @@ plot_all_boxplots <-
       enframe(ga_results, name = "n_eval", value = "scores") %>%
       unnest(scores) %>%
       mutate(algorithm = "GA")
-    
+
     data_hms <-
       enframe(hms_results, name = "n_eval", value = "scores") %>%
       unnest(scores) %>%
       mutate(algorithm = "HMS")
-    
+
     data_de <-
       enframe(de_results, name = "n_eval", value = "scores") %>%
       unnest(scores) %>%
       mutate(algorithm = "iL-SHADE")
-    
+
     data_cma_es <-
       enframe(cma_es_results, name = "n_eval", value = "scores") %>%
       unnest(scores) %>%
       mutate(algorithm = "BIPOP-CMA-ES")
-    
+
     data_combined <- bind_rows(data_ga, data_hms, data_de, data_cma_es)
     ggplot(data_combined, aes(
       x = as.factor(as.integer(n_eval)),

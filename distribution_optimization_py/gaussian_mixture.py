@@ -106,12 +106,15 @@ def compare_solutions(
     label2: str,
     num: int | None = 1000,
     bins: int | None = 30,
+    title: str | None = None,
 ) -> None:
     gmm1 = GaussianMixture(n_components=nr_of_modes, random_state=1).set_params(X, solution1)
     gmm2 = GaussianMixture(n_components=nr_of_modes, random_state=1).set_params(X, solution2)
     x = np.linspace(X.min(), X.max(), num)
     pdf1 = gmm1.score_samples(x)
     pdf2 = gmm2.score_samples(x)
+    pdf1 = pdf1 / pdf1.sum() * 100
+    pdf2 = pdf2 / pdf2.sum() * 100
     plt.hist(
         X,
         bins=bins,
@@ -123,5 +126,6 @@ def compare_solutions(
     plt.plot(x, pdf1, "--", label=label1, color="r")
     plt.plot(x, pdf2, "--", label=label2, color="b")
     plt.legend(loc="upper left")
-    plt.title("Histogram and GMM PDF")
+    if title:
+        plt.title(title)
     plt.show()
