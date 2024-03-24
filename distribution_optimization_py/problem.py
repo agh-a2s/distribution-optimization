@@ -280,7 +280,7 @@ class ScaledGaussianMixtureProblemForELA(ScaledGaussianMixtureProblem):
             self.base_lower[: self.nr_of_modes - 1],
             self.base_upper[: self.nr_of_modes - 1],
         )
-        internal_weights = reals_to_uniform_simplex(weights)
+        internal_weights = reals_to_simplex(weights)
         # Scale sds linearly:
         sds = x[self.nr_of_modes - 1 : 2 * self.nr_of_modes - 1]
         internal_sds = scale_linearly(
@@ -311,7 +311,7 @@ class ScaledGaussianMixtureProblemForELA(ScaledGaussianMixtureProblem):
     def internal_to_reals(self, x: np.ndarray) -> np.ndarray:
         # Scale weights from simplex:
         internal_weights = x[: self.nr_of_modes]
-        weights = uniform_simplex_to_reals(internal_weights)
+        weights = simplex_to_reals(internal_weights)
         weights = scale_linearly(
             weights,
             self.base_lower[: self.nr_of_modes],
