@@ -2,6 +2,10 @@
 
 A Gaussian Mixture Model (GMM) is a probabilistic model that assumes all the data points are generated from a mixture of a finite number of Gaussian distributions with unknown parameters. The GMM is here rephrased as an optimization problem and solved using a Hierarchic Memetic Strategy (HMS). This approach diverges from the traditional Likelihood Maximization, Expectation Maximization approach. Instead, it introduces a fitness function that combines the chi-square test, used for analyzing distributions, with an innovative metric designed to estimate the overlapping area under the curves among various Gaussian distributions. This library offers an implementation of [DistributionOptimization](https://cran.r-project.org/web/packages/DistributionOptimization/index.html) in Python.
 
+### Experiment results
+
+The results of the experiments can be found on the `ela-analysis`` branch.
+
 ### Quick start
 
 Read data (LKWFahrzeitSeehafen2010 - Truck driving time seaport 2010):
