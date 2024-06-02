@@ -1,9 +1,8 @@
 import random
 
 import numpy as np
-from leap_ec.problem import FunctionProblem
 from leap_ec.representation import Representation
-from pyhms.problem import EvalCutoffProblem
+from pyhms.core.problem import EvalCutoffProblem, FunctionProblem
 
 from ..ga_style_operators import GAStyleEA
 from ..problem import ScaledGaussianMixtureProblem

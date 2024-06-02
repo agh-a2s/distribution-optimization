@@ -23,9 +23,10 @@ classifiers = [
 python = "^3.10"
 numpy = "^1.26.3"
 scipy = "^1.11.4"
-pyhms = {git = "https://github.com/agh-a2s/pyhms.git"}
+pyhms = {path = "../pyhms", develop = true}
 matplotlib = "^3.8.3"
 pyade-python = "^1.1"
+torch = "^2.3.0"
 
 
 [tool.poetry.group.dev.dependencies]

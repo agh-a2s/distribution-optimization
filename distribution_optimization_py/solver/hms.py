@@ -1,10 +1,9 @@
 import random
 
 import numpy as np
-from leap_ec.problem import FunctionProblem
 from leap_ec.representation import Representation
 from pyhms.config import CMALevelConfig, EALevelConfig, TreeConfig
-from pyhms.problem import EvalCutoffProblem
+from pyhms.core.problem import EvalCutoffProblem, FunctionProblem
 from pyhms.sprout.sprout_filters import DemeLimit, LevelLimit, NBC_FarEnough
 from pyhms.sprout.sprout_generators import NBC_Generator
 from pyhms.sprout.sprout_mechanisms import SproutMechanism

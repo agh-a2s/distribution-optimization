@@ -1,16 +1,75 @@
-from typing import Iterator
+from abc import ABC, abstractmethod
+from typing import Any, Iterator
 
 import leap_ec.ops as lops
 import numpy as np
-from leap_ec import Individual
-from leap_ec.problem import FunctionProblem
 from leap_ec.real_rep.ops import mutate_gaussian
+from leap_ec.representation import Representation
 from leap_ec.util import wrap_curry
-from pyhms.demes.single_pop_eas.sea import SimpleEA
-from pyhms.problem import EvalCutoffProblem
+from pyhms.core.individual import Individual
+from pyhms.core.problem import EvalCutoffProblem, FunctionProblem, Problem
+from pyhms.initializers import sample_uniform
 from toolz import pipe
 
 from .problem import GaussianMixtureProblem
+
+DEFAULT_K_ELITES = 1
+DEFAULT_GENERATIONS = 1
+DEFAULT_MUTATION_STD = 1.0
+
+
+class AbstractEA(ABC):
+    def __init__(
+        self,
+        problem: Problem,
+        pop_size: int,
+    ) -> None:
+        super().__init__()
+        self.problem = problem
+        self.bounds = problem.bounds
+        self.pop_size = pop_size
+
+    @abstractmethod
+    def run(self, parents: list[Individual] | None = None):
+        raise NotImplementedError()
+
+    @classmethod
+    def create(cls, problem: Problem, pop_size: int, **kwargs):
+        return cls(problem=problem, pop_size=pop_size, **kwargs)
+
+
+class SimpleEA(AbstractEA):
+    """
+    A simple single population EA (SEA skeleton).
+    """
+
+    def __init__(
+        self,
+        problem: Problem,
+        pop_size: int,
+        pipeline: list[Any],
+        generations: int | None = DEFAULT_GENERATIONS,
+        k_elites: int | None = DEFAULT_K_ELITES,
+        representation: Representation | None = None,
+    ) -> None:
+        super().__init__(problem, pop_size)
+        self.generations = generations
+        self.pipeline = pipeline
+        self.k_elites = k_elites
+        if representation is not None:
+            self.representation = representation
+        else:
+            self.representation = Representation(initialize=sample_uniform(bounds=problem.bounds))
+
+    def run(self, parents: list[Individual] | None = None) -> list[Individual]:
+        if parents is None:
+            parent_genomes = [self.representation.initialize() for _ in range(self.pop_size)]
+            parents = [Individual(genome=genome, problem=self.problem) for genome in parent_genomes]
+            parents = Individual.evaluate_population(parents)
+        else:
+            assert self.pop_size == len(parents)
+
+        return pipe(parents, *self.pipeline, lops.elitist_survival(parents=parents, k=self.k_elites))
 
 
 @wrap_curry
@@ -122,7 +181,6 @@ class GAStyleEA(SimpleEA):
     ) -> None:
         super().__init__(
             problem,
-            bounds,
             pop_size,
             pipeline=[
                 lops.tournament_selection,
@@ -163,14 +221,14 @@ class GAStyleEA(SimpleEA):
         return pipe(parents, *self.pipeline, lops.elitist_survival(parents=parents, k=self.k_elites))
 
     @classmethod
-    def create(cls, generations, problem, bounds, pop_size, **kwargs):
+    def create(cls, generations, problem, pop_size, **kwargs):
         k_elites = kwargs.get("k_elites") or 1
         p_mutation = kwargs.get("p_mutation") or 0.9
         p_crossover = kwargs.get("p_crossover") or 0.9
         return cls(
             generations=generations,
             problem=problem,
-            bounds=bounds,
+            bounds=problem.bounds,
             pop_size=pop_size,
             k_elites=k_elites,
             p_mutation=p_mutation,
@@ -197,7 +255,6 @@ class CustomSEA(SimpleEA):
     ) -> None:
         super().__init__(
             problem,
-            bounds,
             pop_size,
             pipeline=[
                 lops.tournament_selection,
@@ -213,7 +270,7 @@ class CustomSEA(SimpleEA):
         )
 
     @classmethod
-    def create(cls, generations, problem, bounds, pop_size, **kwargs):
+    def create(cls, generations, problem, pop_size, **kwargs):
         mutation_std = kwargs.get("mutation_std") or 1.0
         k_elites = kwargs.get("k_elites") or 1
         p_mutation = kwargs.get("p_mutation") or 1
@@ -221,7 +278,7 @@ class CustomSEA(SimpleEA):
         return cls(
             generations=generations,
             problem=problem,
-            bounds=bounds,
+            bounds=problem.bounds,
             pop_size=pop_size,
             mutation_std=mutation_std,
             k_elites=k_elites,
