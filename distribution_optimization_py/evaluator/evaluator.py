@@ -1,10 +1,11 @@
-from ..problem import GaussianMixtureProblem
-from ..solver import Solver
-import numpy as np
 from time import time
+
+import numpy as np
 import pandas as pd
 from multiprocess import Pool
-from ..solver.protocol import DATASETS
+
+from ..problem import GaussianMixtureProblem
+from ..solver import Solver
 
 
 class ProblemEvaluator:
@@ -37,9 +38,7 @@ class ProblemEvaluator:
                 print(f"{solver.__class__.__name__} failed, {exc}")
         return np.array(fitness_values)
 
-    def evaluate_problem(
-        self, problem: GaussianMixtureProblem, precision: float
-    ) -> pd.DataFrame:
+    def evaluate_problem(self, problem: GaussianMixtureProblem, precision: float) -> pd.DataFrame:
         start = time()
         rows = []
         for solver in self.solvers:
@@ -60,7 +59,5 @@ class ProblemEvaluator:
 
     def __call__(self, precision: float | None = 1e-8) -> pd.DataFrame:
         with Pool(self.max_pool) as p:
-            pool_outputs = p.map(
-                lambda problem: self.evaluate_problem(problem, precision), self.problems
-            )
+            pool_outputs = p.map(lambda problem: self.evaluate_problem(problem, precision), self.problems)
         return pd.concat(pool_outputs)

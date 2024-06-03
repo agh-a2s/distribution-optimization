@@ -12,8 +12,8 @@ from pyhms.stop_conditions.usc import DontStop, MetaepochLimit
 from pyhms.tree import DemeTree
 
 from ..ga_style_operators import GAStyleEA
-from ..problem import ScaledGaussianMixtureProblem
-from .protocol import Solver
+from ..problem import GaussianMixtureProblem, ScaledGaussianMixtureProblem
+from .protocol import Solution, Solver
 
 HMS_CONFIG = {
     "nbc_cut": 3.7963357241892517,
@@ -35,23 +35,22 @@ HMS_CONFIG = {
 class HMSSolver(Solver):
     def __call__(
         self,
-        problem: ScaledGaussianMixtureProblem,
+        problem: GaussianMixtureProblem,
         max_n_evals: int,
         random_state: int | None = None,
-    ) -> np.ndarray:
+    ) -> Solution:
         if random_state:
             random.seed(random_state)
             np.random.seed(random_state)
         options = {"random_seed": random_state} if random_state else {}
-        function_problem = FunctionProblem(problem, maximize=False)
-        cutoff_problem = EvalCutoffProblem(function_problem, max_n_evals)
         bounds = np.column_stack((problem.lower, problem.upper))
+        function_problem = FunctionProblem(problem, bounds=bounds, maximize=False)
+        cutoff_problem = EvalCutoffProblem(function_problem, max_n_evals)
         levels_config = [
             EALevelConfig(
                 ea_class=GAStyleEA,
                 generations=HMS_CONFIG["generations1"],
                 problem=cutoff_problem,
-                bounds=bounds,
                 pop_size=HMS_CONFIG["pop1"],
                 lsc=DontStop(),
                 k_elites=HMS_CONFIG["k_elites1"],
@@ -59,12 +58,12 @@ class HMSSolver(Solver):
                 p_mutation=HMS_CONFIG["p_mutation1"],
                 p_crossover=HMS_CONFIG["p_crossover1"],
                 use_warm_start=HMS_CONFIG["use_warm_start"],
+                initialize=problem.initialize,
             ),
             CMALevelConfig(
                 problem=cutoff_problem,
-                bounds=bounds,
                 lsc=MetaepochLimit(HMS_CONFIG["metaepoch2"]),
-                sigma0=HMS_CONFIG["sigma2"],
+                sigma0=None,
                 generations=HMS_CONFIG["generations2"],
             ),
         ]
@@ -78,4 +77,12 @@ class HMSSolver(Solver):
         tree_config = TreeConfig(levels_config, gsc, sprout, options)
         deme_tree = DemeTree(tree_config)
         deme_tree.run()
-        return deme_tree.best_individual.genome
+        if isinstance(problem, ScaledGaussianMixtureProblem):
+            scaled_genome = problem.reals_to_internal(deme_tree.best_individual.genome)
+        else:
+            scaled_genome = None
+        return Solution(
+            fitness=deme_tree.best_individual.fitness,
+            genome=deme_tree.best_individual.genome,
+            scaled_genome=scaled_genome,
+        )

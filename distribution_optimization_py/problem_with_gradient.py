@@ -57,7 +57,7 @@ class ChiSquareLossWithGradientModel(torch.nn.Module):
 
 
 class AdamSolver:
-    def __init__(self, lr: float):
+    def __init__(self, lr: float = 3e-4):
         self.lr = lr
 
     def __call__(
