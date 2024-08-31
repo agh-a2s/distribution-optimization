@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.special import logsumexp
 from scipy.stats import norm
 from sklearn.cluster import KMeans
 
@@ -138,13 +139,45 @@ class GaussianMixtureProblem:
         return x
 
     def initialize_warm_start(self, method: str | None = "kmeans") -> np.ndarray:
-        weights, sds, means = METHOD_TO_INITIALIZE_PARAMETERS[method](self.data, self.nr_of_modes)
+        if not getattr(self, "initialized_parameters", None):
+            self.initialized_parameters = METHOD_TO_INITIALIZE_PARAMETERS[method](self.data, self.nr_of_modes)
+        weights, sds, means = self.initialized_parameters
+        means = np.random.normal(
+            means,
+            (np.max(self.data) - np.min(self.data)) / (self.nr_of_modes * 5),
+            size=self.nr_of_modes,
+        )
+        weights = np.random.normal(
+            weights,
+            0.05,
+            size=self.nr_of_modes,
+        )
+        weights = weights / np.sum(weights)
         means_order = np.argsort(means)
         weights = weights[means_order]
         sds = sds[means_order]
+        sds = np.random.normal(
+            sds,
+            (np.max(self.data) - np.min(self.data)) / (self.nr_of_modes * 15),
+            size=self.nr_of_modes,
+        )
         means = means[means_order]
         x = np.concatenate([weights, sds, means])
         return np.minimum(np.maximum(x, self.data_lower), self.data_upper)
+
+    def log_likelihood(self, x: np.ndarray) -> float:
+        log_likelihood_values = []
+
+        weights = x[: self.nr_of_modes]
+        sds = x[self.nr_of_modes : 2 * self.nr_of_modes]
+        means = x[2 * self.nr_of_modes :]
+
+        for x in self.data:
+            log_probabilities = np.log(weights) + norm.logpdf(x, means, sds)
+            log_likelihood_values.append(logsumexp(log_probabilities))
+
+        log_likelihood = np.sum(log_likelihood_values)
+        return log_likelihood
 
 
 class LinearlyScaledGaussianMixtureProblem(GaussianMixtureProblem):
@@ -195,6 +228,12 @@ class LinearlyScaledGaussianMixtureProblem(GaussianMixtureProblem):
         scaled_x = scale_linearly(fixed_x, self.data_lower, self.data_upper, self.lower, self.upper)
         scaled_x = np.minimum(np.maximum(scaled_x, self.lower), self.upper)
         return scaled_x
+
+    def log_likelihood(self, x: np.ndarray) -> float:
+        if self.lower is not None and self.upper is not None:
+            x = scale_linearly(x, self.lower, self.upper, self.data_lower, self.data_upper)
+        fixed_x = self.fix(x)
+        return super().log_likelihood(fixed_x)
 
 
 class ScaledGaussianMixtureProblem(GaussianMixtureProblem):
@@ -271,3 +310,7 @@ class ScaledGaussianMixtureProblem(GaussianMixtureProblem):
         )
         means = unscale_uniformly_simplex(full_simplex_to_reals(reals_with_offset_to_reals(means)))
         return np.concatenate([weights, sds, means])
+
+    def log_likelihood(self, x: np.ndarray) -> float:
+        internal_x = self.reals_to_internal(x)
+        return super().log_likelihood(internal_x)
