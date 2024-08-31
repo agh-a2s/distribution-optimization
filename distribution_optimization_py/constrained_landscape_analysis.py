@@ -1,9 +1,11 @@
-import numpy as np
 from abc import ABC, abstractmethod
-from .utils import bin_prob_for_mixtures, optimal_no_bins
-from .problem import DEFAULT_NR_OF_KERNELS, INFINITY, DEFAULT_OVERLAP_TOLERANCE
-from scipy.stats import norm
 from enum import StrEnum
+
+import numpy as np
+from scipy.stats import norm
+
+from .problem import DEFAULT_NR_OF_KERNELS, DEFAULT_OVERLAP_TOLERANCE, INFINITY
+from .utils import bin_prob_for_mixtures, optimal_no_bins
 
 
 class ConstraintHandlingTechnique(StrEnum):
@@ -82,9 +84,7 @@ class DistributionOptimizationProblem(ConstrainedProblem):
         self.nr_of_bins = optimal_no_bins(data)
         self.breaks = np.linspace(np.min(data), np.max(data), self.nr_of_bins + 1)
         self.observed_bins, _ = np.histogram(data, self.breaks)
-        self.nr_of_kernels = (
-            nr_of_kernels  # Kernels are used to estimate the overlap error.
-        )
+        self.nr_of_kernels = nr_of_kernels  # Kernels are used to estimate the overlap error.
         self.overlap_tolerance = overlap_tolerance
         bounds = self.get_bounds()
         self.data_lower, self.data_upper = bounds[:, 0], bounds[:, 1]
@@ -100,9 +100,7 @@ class DistributionOptimizationProblem(ConstrainedProblem):
         g_weights = self._adjust_equality_constraint(h_weights)
         g_means = []
         for i in range(self.nr_of_modes - 1):
-            g_means.append(
-                xs[:, 2 * self.nr_of_modes + i] - xs[:, 2 * self.nr_of_modes + i + 1]
-            )
+            g_means.append(xs[:, 2 * self.nr_of_modes + i] - xs[:, 2 * self.nr_of_modes + i + 1])
         return np.column_stack([g_overlap, g_weights] + g_means)
 
     def overlap_constraint(self, xs: np.ndarray) -> float:
@@ -111,15 +109,8 @@ class DistributionOptimizationProblem(ConstrainedProblem):
             weights = x[: self.nr_of_modes]
             sds = x[self.nr_of_modes : 2 * self.nr_of_modes]
             means = x[2 * self.nr_of_modes :]
-            kernels = np.linspace(
-                np.min(self.data), np.max(self.data), self.nr_of_kernels
-            )
-            densities = np.array(
-                [
-                    norm.pdf(kernels, loc=m, scale=sd) * w
-                    for m, sd, w in zip(means, sds, weights)
-                ]
-            )
+            kernels = np.linspace(np.min(self.data), np.max(self.data), self.nr_of_kernels)
+            densities = np.array([norm.pdf(kernels, loc=m, scale=sd) * w for m, sd, w in zip(means, sds, weights)])
 
             overlap_in_component = np.zeros_like(densities)
             for i in range(len(means)):
@@ -142,9 +133,7 @@ class DistributionOptimizationProblem(ConstrainedProblem):
         weights = x[: self.nr_of_modes]
         sds = x[self.nr_of_modes : 2 * self.nr_of_modes]
         means = x[2 * self.nr_of_modes :]
-        estimated_bins = (
-            bin_prob_for_mixtures(means, sds, weights, self.breaks) * self.N
-        )
+        estimated_bins = bin_prob_for_mixtures(means, sds, weights, self.breaks) * self.N
         norm = estimated_bins.copy()
         norm[norm < 1] = 1
         diffssq = np.power((self.observed_bins - estimated_bins), 2)
@@ -176,9 +165,7 @@ class DistributionOptimizationProblem(ConstrainedProblem):
             (np.max(self.data) - np.min(self.data)) / (self.nr_of_modes * 3),
             size=self.nr_of_modes,
         )
-        breaks = np.linspace(
-            np.min(self.data), np.max(self.data), self.nr_of_modes + 2
-        )[1:-1]
+        breaks = np.linspace(np.min(self.data), np.max(self.data), self.nr_of_modes + 2)[1:-1]
         means = np.random.normal(
             breaks,
             (np.max(self.data) - np.min(self.data)) / (self.nr_of_modes * 5),
