@@ -4,9 +4,10 @@ import numpy as np
 from leap_ec.representation import Representation
 from pyhms.core.problem import EvalCutoffProblem, FunctionProblem
 
+from ..evaluator.problem_wrapper import ProblemMonitor
 from ..ga_style_operators import GAStyleEA
-from ..problem import ScaledGaussianMixtureProblem
-from .protocol import Solver
+from ..problem import GaussianMixtureProblem, ScaledGaussianMixtureProblem
+from .protocol import CONVERGENCE_PLOT_STEP_SIZE, Solution, Solver
 
 GA_CONFIG = {"k_elites": 5, "p_mutation": 0.8, "p_crossover": 0.9, "pop_size": 50}
 
@@ -14,7 +15,7 @@ GA_CONFIG = {"k_elites": 5, "p_mutation": 0.8, "p_crossover": 0.9, "pop_size": 5
 class GASolver(Solver):
     def __call__(
         self,
-        problem: ScaledGaussianMixtureProblem,
+        problem: GaussianMixtureProblem,
         max_n_evals: int,
         random_state: int | None = None,
     ):
@@ -22,8 +23,8 @@ class GASolver(Solver):
             np.random.seed(random_state)
             random.seed(random_state)
         bounds = np.column_stack((problem.lower, problem.upper))
-        function_problem = FunctionProblem(problem, maximize=False)
-        eval_cutoff_problem = EvalCutoffProblem(function_problem, max_n_evals)
+        function_problem = FunctionProblem(problem, bounds=bounds, maximize=False)
+        eval_cutoff_problem = ProblemMonitor(function_problem, max_n_evals, CONVERGENCE_PLOT_STEP_SIZE)
         ea = GAStyleEA(
             generations=1,
             problem=eval_cutoff_problem,
@@ -40,4 +41,16 @@ class GASolver(Solver):
         for _ in range(iterations_count):
             population = ea.run(population)
             all_populations.extend(population)
-        return max(all_populations).genome
+        best_solution = max(all_populations)
+        scaled_genome = (
+            problem.reals_to_internal(best_solution.genome)
+            if isinstance(problem, ScaledGaussianMixtureProblem)
+            else None
+        )
+        return Solution(
+            fitness=best_solution.fitness,
+            genome=best_solution.genome,
+            scaled_genome=scaled_genome,
+            log_likelihood=problem.log_likelihood(best_solution.genome),
+            fitness_values=np.array(eval_cutoff_problem._problem_values),
+        )
