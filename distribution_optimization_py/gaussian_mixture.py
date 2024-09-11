@@ -2,7 +2,10 @@ from typing import Type
 
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
+from .datasets import Dataset
 from .problem import ScaledGaussianMixtureProblem
 from .solver import CMAESSolver, DESolver, GASolver, HMSSolver, Solver
 from .utils import mixture_probability
@@ -125,3 +128,120 @@ def compare_solutions(
     plt.legend(loc="upper left")
     plt.title("Histogram and GMM PDF")
     plt.show()
+
+
+def compare_solutions_plotly(
+    X: np.ndarray,
+    nr_of_modes: int,
+    solutions: list[np.ndarray],
+    labels: list[str],
+    num: int | None = 1000,
+    bins: int | None = 30,
+) -> None:
+    assert len(solutions) == len(labels)
+    gmms = [GaussianMixture(n_components=nr_of_modes, random_state=1).set_params(X, solution) for solution in solutions]
+
+    x = np.linspace(X.min(), X.max(), num)
+    pdfs = [gmm.score_samples(x) for gmm in gmms]
+
+    hist_data = np.histogram(X, bins=bins, density=True)
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Bar(
+            x=hist_data[1][:-1],
+            y=hist_data[0],
+            opacity=0.6,
+            name="Empirical Data",
+        )
+    )
+
+    for pdf, label in zip(pdfs, labels):
+        fig.add_trace(
+            go.Scatter(
+                x=x.flatten(),
+                y=pdf,
+                mode="lines",
+                name=label,
+                line=dict(dash="dash"),
+            )
+        )
+
+    fig.update_layout(
+        title="Histogram and GMM PDF",
+        xaxis_title="X",
+        yaxis_title="Density",
+        legend=dict(x=1.2, y=1),
+    )
+
+    fig.show()
+
+
+def compare_solutions_for_datasets_plotly(
+    datasets: list[Dataset],
+    dataset_name_to_label_to_solution: dict[str, dict[str, np.ndarray]],
+    color_map: dict[str, str],
+    num: int | None = 1000,
+    bins: int | None = 30,
+    cols: int = 1,
+    height: int = 2400,
+    width: int = 1000,
+) -> None:
+    fig = make_subplots(
+        rows=len(datasets) // cols,
+        cols=cols,
+        subplot_titles=[dataset.name for dataset in datasets],
+    )
+    for dataset_idx, dataset in enumerate(datasets):
+        row = dataset_idx // cols + 1
+        col = dataset_idx % cols + 1
+        label_to_solution = dataset_name_to_label_to_solution[dataset.name]
+        labels = list(label_to_solution.keys())
+        solutions = list(label_to_solution.values())
+        gmms = [
+            GaussianMixture(n_components=dataset.nr_of_modes, random_state=1).set_params(dataset.data, solution)
+            for solution in solutions
+        ]
+        x = np.linspace(dataset.data.min(), dataset.data.max(), num)
+        pdfs = [gmm.score_samples(x) for gmm in gmms]
+        hist_data = np.histogram(dataset.data, bins=bins, density=True)
+        fig.add_trace(
+            go.Bar(
+                x=hist_data[1][:-1],
+                y=hist_data[0],
+                opacity=0.3,
+                name="Empirical Data",
+                legendgroup="Empirical Data",
+                showlegend=(dataset_idx == 0),
+                marker=dict(color=color_map["Empirical Data"]),
+            ),
+            row=row,
+            col=col,
+        )
+
+        for pdf, label in zip(pdfs, labels):
+            fig.add_trace(
+                go.Scatter(
+                    x=x.flatten(),
+                    y=pdf,
+                    mode="lines",
+                    name=label,
+                    legendgroup=label,
+                    showlegend=(dataset_idx == 0),
+                    line=dict(dash="dash", color=color_map[label]),
+                ),
+                row=row,
+                col=col,
+            )
+
+    fig.update_layout(
+        title="Histogram and GMM PDF",
+        xaxis_title="X",
+        yaxis_title="Density",
+        legend=dict(x=1.02, y=1, xanchor="left", yanchor="top"),
+        height=height,
+        width=width,
+    )
+
+    fig.show()
