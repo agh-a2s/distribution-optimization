@@ -1,8 +1,10 @@
+from typing import Any, Callable, List, Tuple, Union
+
 import numpy as np
-from typing import Callable, Union, List, Tuple, Any
 
 # TODO:
 # 1. Implement a new argmin, argsort that supports multiple dimensions
+
 
 def keep_bounds(population: np.ndarray, bounds: np.ndarray) -> np.ndarray:
     """
@@ -21,9 +23,7 @@ def keep_bounds(population: np.ndarray, bounds: np.ndarray) -> np.ndarray:
     return np.clip(population, minimum, maximum)
 
 
-def init_population(
-    population_size: int, individual_size: int, bounds: Union[np.ndarray, list]
-) -> np.ndarray:
+def init_population(population_size: int, individual_size: int, bounds: Union[np.ndarray, list]) -> np.ndarray:
     """
     Creates a random population within its constrained bounds.
     :param population_size: Number of individuals desired in the population.
@@ -45,9 +45,7 @@ def init_population(
     return population
 
 
-def apply_fitness(
-    population: np.ndarray, func: Callable[[np.ndarray], float], opts: Any
-) -> np.ndarray:
+def apply_fitness(population: np.ndarray, func: Callable[[np.ndarray], float], opts: Any) -> np.ndarray:
     """
     Applies the given fitness function to each individual of the population.
     :param population: Population to apply the current fitness function.
@@ -71,16 +69,12 @@ def __parents_choice(population: np.ndarray, n_parents: int) -> np.ndarray:
     mask = np.ones(choices.shape, dtype=bool)
     np.fill_diagonal(mask, 0)
     choices = choices[mask].reshape(pob_size, pob_size - 1)
-    parents = np.array(
-        [np.random.choice(row, n_parents, replace=False) for row in choices]
-    )
+    parents = np.array([np.random.choice(row, n_parents, replace=False) for row in choices])
 
     return parents
 
 
-def binary_mutation(
-    population: np.ndarray, f: Union[int, float], bounds: np.ndarray
-) -> np.ndarray:
+def binary_mutation(population: np.ndarray, f: Union[int, float], bounds: np.ndarray) -> np.ndarray:
     """
     Calculate the binary mutation of the population. For each individual (n),
     3 random parents (x,y,z) are selected. The parents are guaranteed to not
@@ -178,9 +172,7 @@ def current_to_pbest_mutation(
     # 1. We find the best parent
     p_best = []
     for p_i in p:
-        best_index = np.argsort(population_fitness)[
-            : max(2, int(round(p_i * len(population))))
-        ]
+        best_index = np.argsort(population_fitness)[: max(2, int(round(p_i * len(population))))]
         p_best.append(np.random.choice(best_index))
 
     p_best = np.array(p_best)
@@ -274,9 +266,7 @@ def current_to_pbest_weighted_mutation(
     return keep_bounds(mutated, bounds)
 
 
-def crossover(
-    population: np.ndarray, mutated: np.ndarray, cr: Union[int, float]
-) -> np.ndarray:
+def crossover(population: np.ndarray, mutated: np.ndarray, cr: Union[int, float]) -> np.ndarray:
     """
     Crosses gens from individuals of the last generation and the mutated ones
     based on the crossover rate. Binary crossover
@@ -295,9 +285,7 @@ def crossover(
     return np.where(chosen <= cr, mutated, population)
 
 
-def exponential_crossover(
-    population: np.ndarray, mutated: np.ndarray, cr: Union[int, float]
-) -> np.ndarray:
+def exponential_crossover(population: np.ndarray, mutated: np.ndarray, cr: Union[int, float]) -> np.ndarray:
     """
     Crosses gens from individuals of the last generation and the mutated ones
     based on the crossover rate. Exponential crossover.
@@ -315,9 +303,7 @@ def exponential_crossover(
     else:
         cr = cr.flatten()
 
-    def __exponential_crossover_1(
-        x: np.ndarray, y: np.ndarray, cr: Union[int, float]
-    ) -> np.ndarray:
+    def __exponential_crossover_1(x: np.ndarray, y: np.ndarray, cr: Union[int, float]) -> np.ndarray:
         z = x.copy()
         n = len(x)
         k = np.random.randint(0, n)
@@ -331,10 +317,7 @@ def exponential_crossover(
                 return z
 
     return np.array(
-        [
-            __exponential_crossover_1(population[i], mutated[i], cr.flatten()[i])
-            for i in range(len(population))
-        ]
+        [__exponential_crossover_1(population[i], mutated[i], cr.flatten()[i]) for i in range(len(population))]
     )
 
 

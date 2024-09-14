@@ -1,14 +1,12 @@
-from .commons import (
-    init_population as default_init_population,
-    current_to_pbest_mutation,
-    crossover,
-    apply_fitness,
-    selection,
-)
+import random
+from typing import Any, Callable, Dict, Union
+
 import numpy as np
 import scipy.stats
-import random
-from typing import Callable, Union, Dict, Any
+
+from .commons import apply_fitness, crossover, current_to_pbest_mutation
+from .commons import init_population as default_init_population
+from .commons import selection
 
 
 def get_default_params(dim: int):
@@ -146,15 +144,11 @@ def apply(
             f[f > 0.9] = 0.9
 
         # 2.2 Common steps
-        mutated = current_to_pbest_mutation(
-            population, fitness, f.reshape(len(f), 1), p_i, bounds
-        )
+        mutated = current_to_pbest_mutation(population, fitness, f.reshape(len(f), 1), p_i, bounds)
         crossed = crossover(population, mutated, cr.reshape(len(f), 1))
         c_fitness = apply_fitness(crossed, func, opts)
         num_evals += current_size
-        population, indexes = selection(
-            population, crossed, fitness, c_fitness, return_indexes=True
-        )
+        population, indexes = selection(population, crossed, fitness, c_fitness, return_indexes=True)
 
         # 2.3 Adapt for next generation
         archive.extend(population[indexes])
@@ -167,10 +161,7 @@ def apply(
             weights /= np.sum(weights)
 
             if max(cr) != 0:
-                m_cr[k] = (
-                    np.sum(weights * cr[indexes] ** 2) / np.sum(weights * cr[indexes])
-                    + m_cr[-1]
-                ) / 2
+                m_cr[k] = (np.sum(weights * cr[indexes] ** 2) / np.sum(weights * cr[indexes]) + m_cr[-1]) / 2
             else:
                 m_cr[k] = 1
 
@@ -182,9 +173,7 @@ def apply(
 
         fitness[indexes] = c_fitness[indexes]
         # Adapt population size
-        new_population_size = round(
-            (4 - population_size) / max_evals * num_evals + population_size
-        )
+        new_population_size = round((4 - population_size) / max_evals * num_evals + population_size)
         if current_size > new_population_size:
             current_size = new_population_size
             best_indexes = np.argsort(fitness)[:current_size]

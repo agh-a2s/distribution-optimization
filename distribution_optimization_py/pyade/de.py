@@ -1,13 +1,10 @@
+from typing import Any, Callable, Dict, Union
+
 import numpy as np
-from .commons import (
-    init_population as default_init_population,
-    apply_fitness,
-    binary_mutation,
-    crossover,
-    exponential_crossover,
-    selection,
-)
-from typing import Callable, Union, Dict, Any
+
+from .commons import apply_fitness, binary_mutation, crossover, exponential_crossover
+from .commons import init_population as default_init_population
+from .commons import selection
 
 
 def get_default_params(dim: int) -> dict:
@@ -119,9 +116,7 @@ def apply(
             crossed = exponential_crossover(population, mutated, cr)
 
         c_fitness = apply_fitness(crossed, func, opts)
-        population, indexes = selection(
-            population, crossed, fitness, c_fitness, return_indexes=True
-        )
+        population, indexes = selection(population, crossed, fitness, c_fitness, return_indexes=True)
 
         fitness[indexes] = c_fitness[indexes]
         if callback is not None:

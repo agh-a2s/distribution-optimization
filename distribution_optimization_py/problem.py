@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.special import logsumexp
 from scipy.stats import norm
-from sklearn.cluster import KMeans
 
+from .initialize import METHOD_TO_INITIALIZE_PARAMETERS
 from .scale import (
     full_simplex_to_reals,
     reals_to_full_simplex,
@@ -23,28 +23,6 @@ DEFAULT_LOWER = -5
 DEFAULT_UPPER = 5
 
 
-def initialize_parameters_with_kmeans(X: np.ndarray, nr_of_modes: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    labels = KMeans(n_clusters=nr_of_modes).fit(X.reshape(-1, 1)).labels_
-    means = np.array([X[labels == i].mean() for i in range(nr_of_modes)])
-    stds = np.array([X[labels == i].std() for i in range(nr_of_modes)])
-    weights = np.array([np.mean(labels == i) for i in range(nr_of_modes)])
-    return weights, stds, means
-
-
-def initialize_parameters_with_quantiles(X: np.ndarray, nr_of_modes: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    quantiles = np.percentile(X, np.linspace(0, 100, nr_of_modes + 1))
-    means = np.array([(quantiles[i] + quantiles[i + 1]) / 2 for i in range(nr_of_modes)])
-    stds = np.array([np.std(X[(X >= quantiles[i]) & (X < quantiles[i + 1])]) for i in range(nr_of_modes)])
-    weights = np.array([len(X[(X >= quantiles[i]) & (X < quantiles[i + 1])]) / len(X) for i in range(nr_of_modes)])
-    return weights, stds, means
-
-
-METHOD_TO_INITIALIZE_PARAMETERS = {
-    "kmeans": initialize_parameters_with_kmeans,
-    "quantiles": initialize_parameters_with_quantiles,
-}
-
-
 class GaussianMixtureProblem:
     def __init__(
         self,
@@ -60,7 +38,10 @@ class GaussianMixtureProblem:
         self.nr_of_bins = optimal_no_bins(data)
         self.breaks = np.linspace(np.min(data), np.max(data), self.nr_of_bins + 1)
         self.observed_bins, _ = np.histogram(data, self.breaks)
-        self.nr_of_kernels = nr_of_kernels  # Kernels are used to estimate the overlap error.
+        self.nr_of_kernels = nr_of_kernels
+        self.min_data = np.min(data)
+        self.max_data = np.max(data)
+        self.kernels = np.linspace(self.min_data, self.max_data, self.nr_of_kernels)
         self.overlap_tolerance = overlap_tolerance
         self.data_lower, self.data_upper = self.get_bounds()
         self.lower = self.data_lower
@@ -78,29 +59,23 @@ class GaussianMixtureProblem:
         return similarity_error
 
     def overlap_error_by_density(self, means: np.ndarray, sds: np.ndarray, weights: np.ndarray) -> float:
-        kernels = np.linspace(np.min(self.data), np.max(self.data), self.nr_of_kernels)
-        densities = np.array([norm.pdf(kernels, loc=m, scale=sd) * w for m, sd, w in zip(means, sds, weights)])
-
-        overlap_in_component = np.zeros_like(densities)
-        for i in range(len(means)):
-            max_other_modes = np.max(np.delete(densities, i, axis=0), axis=0)
-            overlap_in_component[i] = np.minimum(densities[i], max_other_modes)
-
-        area_in_component = np.sum(densities, axis=1)
-        overlap_in_components = np.sum(overlap_in_component, axis=1)
+        densities = norm.pdf(self.kernels[:, np.newaxis], loc=means, scale=sds) * weights
+        n_components = len(means)
+        max_other_densities = np.zeros_like(densities)
+        for i in range(n_components):
+            max_other_densities[:, i] = np.max(np.delete(densities, i, axis=1), axis=1)
+        overlap = np.minimum(densities, max_other_densities)
+        overlap_in_components = np.sum(overlap, axis=0)
+        area_in_component = np.sum(densities, axis=0)
         ov_ratio_in_component = overlap_in_components / area_in_component
-
-        error_overlap_component = np.max(ov_ratio_in_component)
-
-        return error_overlap_component
+        return np.max(ov_ratio_in_component)
 
     def similarity_error(self, means: np.ndarray, sds: np.ndarray, weights: np.ndarray) -> float:
         estimated_bins = bin_prob_for_mixtures(means, sds, weights, self.breaks) * self.N
-        norm = estimated_bins.copy()
-        norm[norm < 1] = 1
-        diffssq = np.power((self.observed_bins - estimated_bins), 2)
-        diffssq[diffssq < 4] = 0
-        return np.sum(diffssq / norm) / self.N
+        norm = np.maximum(estimated_bins, 1)
+        diffs_sq = (self.observed_bins - estimated_bins) ** 2
+        diffs_sq = np.where(diffs_sq < 4, 0, diffs_sq)
+        return np.sum(diffs_sq / norm) / self.N
 
     def get_bounds(self) -> tuple[np.ndarray, np.ndarray]:
         data_range = np.abs(np.max(self.data) - np.min(self.data))
@@ -166,18 +141,14 @@ class GaussianMixtureProblem:
         return np.minimum(np.maximum(x, self.data_lower), self.data_upper)
 
     def log_likelihood(self, x: np.ndarray) -> float:
-        log_likelihood_values = []
-
         weights = x[: self.nr_of_modes]
         sds = x[self.nr_of_modes : 2 * self.nr_of_modes]
         means = x[2 * self.nr_of_modes :]
-
-        for x in self.data:
-            log_probabilities = np.log(weights) + norm.logpdf(x, means, sds)
-            log_likelihood_values.append(logsumexp(log_probabilities))
-
-        log_likelihood = np.sum(log_likelihood_values)
-        return log_likelihood
+        log_weights = np.log(weights)
+        log_probabilities = log_weights + norm.logpdf(self.data[:, np.newaxis], means, sds)
+        log_likelihood_values = logsumexp(log_probabilities, axis=1)
+        total_log_likelihood = np.sum(log_likelihood_values)
+        return total_log_likelihood
 
 
 class LinearlyScaledGaussianMixtureProblem(GaussianMixtureProblem):

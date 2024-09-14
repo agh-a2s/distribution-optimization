@@ -1,14 +1,12 @@
-from .commons import (
-    init_population as default_init_population,
-    apply_fitness,
-    current_to_pbest_mutation,
-    crossover,
-    selection,
-)
+import random
+from typing import Any, Callable, Dict, Union
+
 import numpy as np
 import scipy.stats
-import random
-from typing import Callable, Union, Dict, Any
+
+from .commons import apply_fitness, crossover, current_to_pbest_mutation
+from .commons import init_population as default_init_population
+from .commons import selection
 
 
 def get_default_params(dim: int):
@@ -119,14 +117,10 @@ def apply(
         p = np.random.uniform(low=2 / population_size, high=0.2, size=population_size)
 
         # 2.2 Common steps
-        mutated = current_to_pbest_mutation(
-            population, fitness, f.reshape(len(f), 1), p, bounds
-        )
+        mutated = current_to_pbest_mutation(population, fitness, f.reshape(len(f), 1), p, bounds)
         crossed = crossover(population, mutated, cr.reshape(len(f), 1))
         c_fitness = apply_fitness(crossed, func, opts)
-        population, indexes = selection(
-            population, crossed, fitness, c_fitness, return_indexes=True
-        )
+        population, indexes = selection(population, crossed, fitness, c_fitness, return_indexes=True)
 
         # 2.3 Adapt for next generation
         archive.extend(population[indexes])

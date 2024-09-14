@@ -18,10 +18,8 @@ def mixture_probability(
 
 
 def cdf_mixtures(kernel: np.ndarray, means: np.ndarray, sds: np.ndarray, weights: np.ndarray) -> np.ndarray:
-    cdf_values = []
-    for mean_, sd_ in zip(means, sds):
-        cdf_values.append(norm.cdf(kernel, mean_, sd_))
-    return np.array(cdf_values).T @ weights
+    cdf_values = norm.cdf(kernel[:, np.newaxis], loc=means, scale=sds)
+    return cdf_values @ weights
 
 
 def bin_prob_for_mixtures(means: np.ndarray, sds: np.ndarray, weights: np.ndarray, breaks: np.ndarray) -> np.ndarray:
