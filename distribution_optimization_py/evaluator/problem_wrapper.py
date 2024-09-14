@@ -1,11 +1,9 @@
-from pyhms.core.problem import EvalCutoffProblem, FunctionProblem, Problem
 import numpy as np
+from pyhms.core.problem import EvalCutoffProblem, FunctionProblem, Problem
 
 
 class ProblemMonitor(EvalCutoffProblem):
-    def __init__(
-        self, decorated_problem: Problem, eval_cutoff: int, n_steps: int = 100
-    ):
+    def __init__(self, decorated_problem: Problem, eval_cutoff: int, n_steps: int = 100):
         super().__init__(decorated_problem, eval_cutoff)
         self._n_steps = n_steps
         self._current_best = None

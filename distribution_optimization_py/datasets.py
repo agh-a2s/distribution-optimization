@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 
 import numpy as np
@@ -16,6 +17,7 @@ class Dataset:
     name: str
     nr_of_modes: int
     solution: Solution | None
+    fitness_values: list[float] | None = None
 
 
 TRUCK_DRIVING_SOLUTION = Solution(
@@ -150,74 +152,76 @@ ATMOSPHERE_DATA_SOLUTION = Solution(
     fitness_values=[],
 )
 
+DIR = os.path.dirname(os.path.abspath(__file__))
+
 DATASETS = [
     Dataset(
-        data=read_dataset_from_csv("../data/truck_driving_data.csv"),
+        data=read_dataset_from_csv(os.path.join(DIR, "./data/truck_driving_data.csv")),
         name="truck_driving_data",
         nr_of_modes=3,
         solution=TRUCK_DRIVING_SOLUTION,
     ),
     Dataset(
-        data=read_dataset_from_csv("../data/mixture3.csv"),
+        data=read_dataset_from_csv(os.path.join(DIR, "./data/mixture3.csv")),
         name="mixture3",
         nr_of_modes=3,
         solution=MIXTURE3_SOLUTION,
     ),
     Dataset(
-        data=read_dataset_from_csv("../data/textbook_1k.csv"),
+        data=read_dataset_from_csv(os.path.join(DIR, "./data/textbook_1k.csv")),
         name="textbook_data",
         nr_of_modes=3,
         solution=TEXTBOOK_DATA_SOLUTION,
     ),
     Dataset(
-        data=read_dataset_from_csv("../data/iris_ica.csv"),
+        data=read_dataset_from_csv(os.path.join(DIR, "./data/iris_ica.csv")),
         name="iris_ica",
         nr_of_modes=3,
         solution=IRIS_ICA_SOLUTION,
     ),
     Dataset(
-        data=read_dataset_from_csv("../data/chromatogram_time.csv"),
+        data=read_dataset_from_csv(os.path.join(DIR, "./data/chromatogram_time.csv")),
         name="chromatogram_time",
         nr_of_modes=5,
         solution=CHROMATOGRAM_TIME_SOLUTION,
     ),
     Dataset(
-        data=read_dataset_from_csv("../data/atmosphere_data.csv"),
+        data=read_dataset_from_csv(os.path.join(DIR, "./data/atmosphere_data.csv")),
         name="atmosphere_data",
         nr_of_modes=5,
         solution=ATMOSPHERE_DATA_SOLUTION,
     ),
 ]
 
-SYNTHETIC_DATASETS = [
-    Dataset(
-        data=read_dataset_from_csv("../data/synthetic_1.csv"),
-        name="synthetic_1",
-        nr_of_modes=4,
-        solution=None,
-    ),
-    Dataset(
-        data=read_dataset_from_csv("../data/synthetic_2.csv"),
-        name="synthetic_2",
-        nr_of_modes=4,
-        solution=None,
-    ),
-    Dataset(
-        data=read_dataset_from_csv("../data/synthetic_3.csv"),
-        name="synthetic_3",
-        nr_of_modes=4,
-        solution=None,
-    ),
-    Dataset(
-        data=read_dataset_from_csv("../data/synthetic_4.csv"),
-        name="synthetic_4",
-        nr_of_modes=6,
-        solution=None,
-    ),
-    Dataset(
-        data=read_dataset_from_csv("../data/synthetic_5.csv"),
-        name="synthetic_5",
-        nr_of_modes=6,
-        solution=None,
-    ),
-]
+# SYNTHETIC_DATASETS = [
+#     Dataset(
+#         data=read_dataset_from_csv("../data/synthetic_1.csv"),
+#         name="synthetic_1",
+#         nr_of_modes=4,
+#         solution=None,
+#     ),
+#     Dataset(
+#         data=read_dataset_from_csv("../data/synthetic_2.csv"),
+#         name="synthetic_2",
+#         nr_of_modes=4,
+#         solution=None,
+#     ),
+#     Dataset(
+#         data=read_dataset_from_csv("../data/synthetic_3.csv"),
+#         name="synthetic_3",
+#         nr_of_modes=4,
+#         solution=None,
+#     ),
+#     Dataset(
+#         data=read_dataset_from_csv("../data/synthetic_4.csv"),
+#         name="synthetic_4",
+#         nr_of_modes=6,
+#         solution=None,
+#     ),
+#     Dataset(
+#         data=read_dataset_from_csv("../data/synthetic_5.csv"),
+#         name="synthetic_5",
+#         nr_of_modes=6,
+#         solution=None,
+#     ),
+# ]
