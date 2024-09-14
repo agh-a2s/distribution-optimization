@@ -1,10 +1,10 @@
-import random
+# import random
 
-import numpy as np
-from cma import CMAEvolutionStrategy
+# import numpy as np
+# from cma import CMAEvolutionStrategy
 
-from ..problem import GaussianMixtureProblem, ScaledGaussianMixtureProblem
-from .protocol import Solution, Solver
+# from ..problem import GaussianMixtureProblem, ScaledGaussianMixtureProblem
+# from .protocol import Solution, Solver
 
 # class CMAESSolver(Solver):
 #     def __call__(
@@ -49,37 +49,37 @@ from .protocol import Solution, Solver
 #         )
 
 
-class CMAESSolver(Solver):
-    def __call__(
-        self,
-        problem: GaussianMixtureProblem,
-        max_n_evals: int,
-        random_state: int | None = None,
-    ) -> np.ndarray:
-        if random_state:
-            np.random.seed(random_state)
-            random.seed(random_state)
-        x0 = problem.initialize()
-        sigma = 1.0
-        cma = CMAEvolutionStrategy(
-            x0,
-            sigma,
-            inopts={
-                "bounds": [problem.lower, problem.upper],
-                "verbose": -9,
-                "seed": random_state,
-                "maxfevals": max_n_evals,
-            },
-        )
-        cma.optimize(problem)
-        solution, fitness = cma.xbest, cma.result
-        scaled_genome = (
-            problem.reals_to_internal(solution) if isinstance(problem, ScaledGaussianMixtureProblem) else None
-        )
-        Solution(
-            fitness=fitness,
-            genome=solution,
-            scaled_genome=None,
-            log_likelihood=problem.log_likelihood(cma.xbest),
-            fitness_values=np.array(eval_cutoff_problem._problem_values),
-        )
+# class CMAESSolver(Solver):
+#     def __call__(
+#         self,
+#         problem: GaussianMixtureProblem,
+#         max_n_evals: int,
+#         random_state: int | None = None,
+#     ) -> np.ndarray:
+#         if random_state:
+#             np.random.seed(random_state)
+#             random.seed(random_state)
+#         x0 = problem.initialize()
+#         sigma = 1.0
+#         cma = CMAEvolutionStrategy(
+#             x0,
+#             sigma,
+#             inopts={
+#                 "bounds": [problem.lower, problem.upper],
+#                 "verbose": -9,
+#                 "seed": random_state,
+#                 "maxfevals": max_n_evals,
+#             },
+#         )
+#         cma.optimize(problem)
+#         solution, fitness = cma.xbest, cma.result
+#         scaled_genome = (
+#             problem.reals_to_internal(solution) if isinstance(problem, ScaledGaussianMixtureProblem) else None
+#         )
+#         Solution(
+#             fitness=fitness,
+#             genome=solution,
+#             scaled_genome=None,
+#             log_likelihood=problem.log_likelihood(cma.xbest),
+#             fitness_values=np.array(eval_cutoff_problem._problem_values),
+#         )

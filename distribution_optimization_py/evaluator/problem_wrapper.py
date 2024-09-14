@@ -1,5 +1,5 @@
 import numpy as np
-from pyhms.core.problem import EvalCutoffProblem, FunctionProblem, Problem
+from pyhms.core.problem import EvalCutoffProblem, Problem
 
 
 class ProblemMonitor(EvalCutoffProblem):
@@ -7,8 +7,8 @@ class ProblemMonitor(EvalCutoffProblem):
         super().__init__(decorated_problem, eval_cutoff)
         self._n_steps = n_steps
         self._current_best = None
-        self._problem_values = []
-        self._index = []
+        self._problem_values: list[float] = []
+        self._index: list[int] = []
 
     def evaluate(self, phenome, *args, **kwargs):
         if self._n_evals >= self._eval_cutoff:

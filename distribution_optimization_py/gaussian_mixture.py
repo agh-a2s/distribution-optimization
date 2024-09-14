@@ -7,12 +7,11 @@ from plotly.subplots import make_subplots
 
 from .datasets import Dataset
 from .problem import ScaledGaussianMixtureProblem
-from .solver import CMAESSolver, DESolver, GASolver, HMSSolver, Solver
+from .solver import DESolver, GASolver, HMSSolver, Solver
 from .utils import mixture_probability
 
 SOLVER_NAME_TO_CLASS: dict[str, Type[Solver]] = {
     "GA": GASolver,
-    "CMA-ES": CMAESSolver,
     "HMS": HMSSolver,
     "DE": DESolver,
 }
@@ -40,7 +39,7 @@ class GaussianMixture:
         X = self._validate_data(X)
         problem = ScaledGaussianMixtureProblem(X, self._n_components)
         solution = self._solver(problem, self._max_n_evals, self._random_state)
-        scaled_solution = problem.reals_to_internal(solution)
+        scaled_solution = problem.reals_to_internal(solution.genome)
         self._X = X
         self._weights = scaled_solution[: self._n_components]
         self._sds = scaled_solution[self._n_components : 2 * self._n_components]

@@ -2,7 +2,7 @@ import random
 from typing import Callable
 
 import numpy as np
-from pyhms.core.problem import EvalCutoffProblem, FunctionProblem
+from pyhms.core.problem import FunctionProblem
 
 from ..evaluator.problem_wrapper import ProblemMonitor
 from ..problem import GaussianMixtureProblem, ScaledGaussianMixtureProblem
@@ -29,7 +29,7 @@ class DEBaseSolver(Solver):
         problem: GaussianMixtureProblem,
         max_n_evals: int,
         random_state: int | None = None,
-    ) -> np.ndarray:
+    ) -> Solution:
         if random_state:
             np.random.seed(random_state)
             random.seed(random_state)

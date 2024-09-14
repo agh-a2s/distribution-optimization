@@ -17,7 +17,6 @@ class Dataset:
     name: str
     nr_of_modes: int
     solution: Solution | None
-    fitness_values: list[float] | None = None
 
 
 TRUCK_DRIVING_SOLUTION = Solution(
@@ -37,7 +36,7 @@ TRUCK_DRIVING_SOLUTION = Solution(
     ),
     scaled_genome=None,
     log_likelihood=None,
-    fitness_values=[],
+    fitness_values=None,
 )
 
 MIXTURE3_SOLUTION = Solution(
@@ -57,7 +56,7 @@ MIXTURE3_SOLUTION = Solution(
     ),
     scaled_genome=None,
     log_likelihood=None,
-    fitness_values=[],
+    fitness_values=None,
 )
 
 TEXTBOOK_DATA_SOLUTION = Solution(
@@ -77,7 +76,7 @@ TEXTBOOK_DATA_SOLUTION = Solution(
     ),
     scaled_genome=None,
     log_likelihood=None,
-    fitness_values=[],
+    fitness_values=None,
 )
 
 IRIS_ICA_SOLUTION = Solution(
@@ -97,7 +96,7 @@ IRIS_ICA_SOLUTION = Solution(
     ),
     scaled_genome=None,
     log_likelihood=None,
-    fitness_values=[],
+    fitness_values=None,
 )
 
 CHROMATOGRAM_TIME_SOLUTION = Solution(
@@ -123,7 +122,7 @@ CHROMATOGRAM_TIME_SOLUTION = Solution(
     ),
     scaled_genome=None,
     log_likelihood=None,
-    fitness_values=[],
+    fitness_values=None,
 )
 
 ATMOSPHERE_DATA_SOLUTION = Solution(
@@ -149,7 +148,7 @@ ATMOSPHERE_DATA_SOLUTION = Solution(
     ),
     scaled_genome=None,
     log_likelihood=None,
-    fitness_values=[],
+    fitness_values=None,
 )
 
 DIR = os.path.dirname(os.path.abspath(__file__))

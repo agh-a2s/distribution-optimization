@@ -2,9 +2,8 @@ from dataclasses import dataclass
 from typing import Protocol
 
 import numpy as np
-import pandas as pd
 
-from ..problem import ScaledGaussianMixtureProblem
+from ..problem import GaussianMixtureProblem
 
 CONVERGENCE_PLOT_STEP_SIZE = 1000
 
@@ -21,7 +20,7 @@ class Solution:
 class Solver(Protocol):
     def __call__(
         self,
-        problem: ScaledGaussianMixtureProblem,
+        problem: GaussianMixtureProblem,
         max_n_evals: int,
         random_state: int | None = None,
     ) -> Solution:
