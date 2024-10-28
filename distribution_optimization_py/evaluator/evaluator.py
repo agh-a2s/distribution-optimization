@@ -33,11 +33,8 @@ class ProblemEvaluator:
     ) -> list[Solution]:
         solutions = []
         for random_state in range(1, self.seed_count + 1):
-            try:
-                solution = solver(problem, max_n_evals, random_state)
-                solutions.append(solution)
-            except Exception as exc:
-                print(f"{solver.__class__.__name__} failed, {exc}")
+            solution = solver(problem, max_n_evals, random_state)
+            solutions.append(solution)
         return solutions
 
     def evaluate_problem(self, problem: GaussianMixtureProblem, precision: float) -> pd.DataFrame:
@@ -55,6 +52,7 @@ class ProblemEvaluator:
                     "fitness_std": np.std(fitness_values),
                     "fitness_values": fitness_values,
                     "success_rate": np.mean(fitness_values < precision),
+                    "solutions": solutions,
                 }
             )
             solver_to_fitness_values[solver.__class__.__name__] = [solution.fitness_values for solution in solutions]

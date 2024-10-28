@@ -1,14 +1,24 @@
 from abc import ABC, abstractmethod
-from enum import StrEnum
+from enum import Enum
 
 import numpy as np
+from scipy.special import logsumexp
 from scipy.stats import norm
 
-from .problem import DEFAULT_NR_OF_KERNELS, DEFAULT_OVERLAP_TOLERANCE, INFINITY
+from .problem import DEFAULT_NR_OF_KERNELS, DEFAULT_OVERLAP_TOLERANCE, INFINITY, METHOD_TO_INITIALIZE_PARAMETERS
 from .utils import bin_prob_for_mixtures, optimal_no_bins
 
+# TODO:
+# 1. Make sure that equality constraints are handled correctly.
+# 2. Implement the biobjective constraint handling technique.
+# 3. Implement the feasibility ranking constraint handling technique.
+# 4. Compare Death Penalty, Weighted Penalty, and Feasibility Ranking.
+# 5. Find NSGA II algorithm and use out of the box implementation to solve this problem.
+# 6. Create notebooks for each method and analyse results.
+# 7. Create a report with the results and the analysis.
 
-class ConstraintHandlingTechnique(StrEnum):
+
+class ConstraintHandlingTechnique(str, Enum):
     DEATH_PENALTY = "death_penalty"
     WEIGHTED_PENALTY = "weighted_penalty"
     FEASIBILITY_RANKING = "feasibility_ranking"
@@ -21,11 +31,13 @@ class ConstrainedProblem(ABC):
         self,
         bounds: np.ndarray,
         method: ConstraintHandlingTechnique = ConstraintHandlingTechnique.DEATH_PENALTY,
+        use_repair: bool = False,
     ) -> None:
         self.dim = bounds.shape[0]
         self.eps = 1e-4
         self.bounds = bounds
         self.method = method
+        self.use_repair = use_repair
 
     @abstractmethod
     def fitness(self, xs: np.ndarray) -> np.ndarray:
@@ -38,32 +50,42 @@ class ConstrainedProblem(ABC):
         pass
 
     @abstractmethod
-    def constraints(self, xs: np.ndarray) -> np.ndarray:
+    def constraints(self, xs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
         Compute the constraints for the given input x.
 
         :param x: A 2D numpy array - a row is a solution.
-        :return: A 2D numpy array where each row contains the constraint values [g1, g2, ..., gN].
+        :return: A tuple of two 2D numpy arrays. The first element of the tuple contains
+        the inequality constraints and the second element contains the equality constraints.
         """
         pass
 
-    def violation(self, xs: np.ndarray) -> np.ndarray:
-        g = self.constraints(xs)
-        num_constraints = g.shape[1]
-        return np.sum(np.maximum(0, g), axis=1) / num_constraints
+    @abstractmethod
+    def repair(self, x: np.ndarray) -> np.ndarray:
+        pass
 
-    def _adjust_equality_constraint(self, h: np.ndarray) -> np.ndarray:
-        # Convert equality constraint to inequality constraint:
-        # h(x) = 0 -> |h(x)| - eps <= 0
-        h_adjusted = np.abs(h) - self.eps
-        return h_adjusted
+    def violation(self, gs: np.ndarray, hs: np.ndarray) -> np.ndarray:
+        num_constraints = gs.shape[1] + hs.shape[1]
+        inequality_sum = np.sum(np.maximum(0, gs), axis=1)
+        equality_sum = np.sum(np.where(np.abs(hs) <= self.eps, 0, np.abs(hs)), axis=1)
+        return inequality_sum + equality_sum / num_constraints
+
+    def are_feasible(self, gs: np.ndarray, hs: np.ndarray) -> np.ndarray:
+        return np.all(gs <= 0, axis=1) & np.all(np.abs(hs) <= self.eps, axis=1)
 
     def __call__(self, x: np.ndarray) -> float | np.ndarray:
         xs = np.array([x])
+        g, h = self.constraints(xs)
+        violation = self.violation(g, h)[0]
+        is_feasible = self.are_feasible(g, h)[0]
+        if not is_feasible and self.use_repair:
+            xs = np.array([self.repair(x)])
+            g, h = self.constraints(xs)
+            violation = self.violation(g, h)[0]
+            is_feasible = self.are_feasible(g, h)[0]
         fitness = self.fitness(xs)[0]
-        violation = self.violation(xs)[0]
         if self.method == ConstraintHandlingTechnique.DEATH_PENALTY:
-            return INFINITY if violation > 0 else fitness
+            return INFINITY if not is_feasible else fitness
         elif self.method == ConstraintHandlingTechnique.WEIGHTED_PENALTY:
             return fitness + violation
         else:
@@ -77,6 +99,9 @@ class DistributionOptimizationProblem(ConstrainedProblem):
         nr_of_modes: int,
         nr_of_kernels: int | None = DEFAULT_NR_OF_KERNELS,
         overlap_tolerance: float | None = DEFAULT_OVERLAP_TOLERANCE,
+        method: ConstraintHandlingTechnique = ConstraintHandlingTechnique.DEATH_PENALTY,
+        id: str | None = None,
+        use_repair: bool = False,
     ):
         self.data = data
         self.nr_of_modes = nr_of_modes
@@ -87,23 +112,30 @@ class DistributionOptimizationProblem(ConstrainedProblem):
         self.nr_of_kernels = nr_of_kernels  # Kernels are used to estimate the overlap error.
         self.overlap_tolerance = overlap_tolerance
         bounds = self.get_bounds()
-        self.data_lower, self.data_upper = bounds[:, 0], bounds[:, 1]
-        super().__init__(bounds)
+        self.lower, self.upper = bounds[:, 0], bounds[:, 1]
+        self.id = id
+        super().__init__(bounds, method, use_repair)
 
     def fitness(self, xs: np.ndarray) -> np.ndarray:
         return np.array([self.similarity_error(x) for x in xs])
 
-    def constraints(self, xs: np.ndarray) -> np.ndarray:
-        # TODO: Test if it's correct
+    def constraints(self, xs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         g_overlap = self.overlap_constraint(xs)
         h_weights = self.weights_constraint(xs)
-        g_weights = self._adjust_equality_constraint(h_weights)
         g_means = []
         for i in range(self.nr_of_modes - 1):
             g_means.append(xs[:, 2 * self.nr_of_modes + i] - xs[:, 2 * self.nr_of_modes + i + 1])
-        return np.column_stack([g_overlap, g_weights] + g_means)
+        return (np.column_stack([g_overlap] + g_means), np.array([h_weights]))
 
-    def overlap_constraint(self, xs: np.ndarray) -> float:
+    def repair(self, x: np.ndarray) -> np.ndarray:
+        x[: self.nr_of_modes] = x[: self.nr_of_modes] / np.sum(x[: self.nr_of_modes])
+        means_order = np.argsort(x[2 * self.nr_of_modes :])
+        x[: self.nr_of_modes] = x[: self.nr_of_modes][means_order]
+        x[self.nr_of_modes : 2 * self.nr_of_modes] = x[self.nr_of_modes : 2 * self.nr_of_modes][means_order]
+        x[2 * self.nr_of_modes :] = x[2 * self.nr_of_modes :][means_order]
+        return x
+
+    def overlap_constraint(self, xs: np.ndarray) -> np.ndarray:
         overlap_errors = []
         for x in xs:
             weights = x[: self.nr_of_modes]
@@ -140,7 +172,7 @@ class DistributionOptimizationProblem(ConstrainedProblem):
         diffssq[diffssq < 4] = 0
         return np.sum(diffssq / norm) / self.N
 
-    def get_bounds(self) -> tuple[np.ndarray, np.ndarray]:
+    def get_bounds(self) -> np.ndarray:
         data_range = np.abs(np.max(self.data) - np.min(self.data))
         weights_lower = [0.03] * self.nr_of_modes
         weights_upper = [1.00] * self.nr_of_modes
@@ -156,8 +188,8 @@ class DistributionOptimizationProblem(ConstrainedProblem):
         self,
     ) -> np.ndarray:
         weights = np.random.uniform(
-            self.data_lower[: self.nr_of_modes],
-            self.data_upper[: self.nr_of_modes],
+            self.lower[: self.nr_of_modes],
+            self.upper[: self.nr_of_modes],
             size=self.nr_of_modes,
         )
         sds = np.random.uniform(
@@ -173,5 +205,46 @@ class DistributionOptimizationProblem(ConstrainedProblem):
         )
         weights = weights / np.sum(weights)
         x = np.concatenate([weights, sds, means])
-        x = np.minimum(np.maximum(x, self.data_lower), self.data_upper)
+        x = np.minimum(np.maximum(x, self.lower), self.upper)
         return x
+
+    def initialize_warm_start(self, method: str | None = "kmeans") -> np.ndarray:
+        if not getattr(self, "initialized_parameters", None):
+            self.initialized_parameters = METHOD_TO_INITIALIZE_PARAMETERS[method](self.data, self.nr_of_modes)
+        weights, sds, means = self.initialized_parameters
+        means = np.random.normal(
+            means,
+            (np.max(self.data) - np.min(self.data)) / (self.nr_of_modes * 5),
+            size=self.nr_of_modes,
+        )
+        weights = np.random.normal(
+            weights,
+            0.05,
+            size=self.nr_of_modes,
+        )
+        weights = weights / np.sum(weights)
+        means_order = np.argsort(means)
+        weights = weights[means_order]
+        sds = sds[means_order]
+        sds = np.random.normal(
+            sds,
+            (np.max(self.data) - np.min(self.data)) / (self.nr_of_modes * 15),
+            size=self.nr_of_modes,
+        )
+        means = means[means_order]
+        x = np.concatenate([weights, sds, means])
+        return np.minimum(np.maximum(x, self.lower), self.upper)
+
+    def log_likelihood(self, x: np.ndarray) -> float:
+        log_likelihood_values = []
+
+        weights = x[: self.nr_of_modes]
+        sds = x[self.nr_of_modes : 2 * self.nr_of_modes]
+        means = x[2 * self.nr_of_modes :]
+
+        for x in self.data:
+            log_probabilities = np.log(weights) + norm.logpdf(x, means, sds)
+            log_likelihood_values.append(logsumexp(log_probabilities))
+
+        log_likelihood = np.sum(log_likelihood_values)
+        return log_likelihood

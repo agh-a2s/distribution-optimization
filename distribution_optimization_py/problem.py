@@ -1,4 +1,8 @@
+from typing import Literal
+
 import numpy as np
+import pandas as pd
+from astropy.stats import bayesian_blocks
 from scipy.special import logsumexp
 from scipy.stats import norm
 
@@ -31,12 +35,25 @@ class GaussianMixtureProblem:
         nr_of_kernels: int | None = DEFAULT_NR_OF_KERNELS,
         overlap_tolerance: float | None = DEFAULT_OVERLAP_TOLERANCE,
         id: str | None = None,
+        nr_of_bins: int | None = None,
+        # TODO:
+        # Investigate Jenks’ Natural Breaks
+        # and Bayesian Blocks hyperparameters
+        # add quantiles with interpolation
+        bin_selection_method: Literal["bayesian_blocks", "quantiles", "equal_width"] = "equal_width",
     ):
         self.data = data
         self.nr_of_modes = nr_of_modes
         self.N = len(data)
-        self.nr_of_bins = optimal_no_bins(data)
-        self.breaks = np.linspace(np.min(data), np.max(data), self.nr_of_bins + 1)
+        if bin_selection_method == "bayesian_blocks":
+            self.breaks = bayesian_blocks(data, fitness="events", p0=0.5)
+            self.nr_of_bins = len(self.breaks) - 1
+        elif bin_selection_method == "quantiles":
+            self.nr_of_bins = optimal_no_bins(data) if nr_of_bins is None else nr_of_bins
+            self.breaks = pd.qcut(data, self.nr_of_bins, retbins=True)[1]
+        else:
+            self.nr_of_bins = optimal_no_bins(data) if nr_of_bins is None else nr_of_bins
+            self.breaks = np.linspace(np.min(data), np.max(data), self.nr_of_bins + 1)
         self.observed_bins, _ = np.histogram(data, self.breaks)
         self.nr_of_kernels = nr_of_kernels
         self.min_data = np.min(data)
@@ -150,6 +167,42 @@ class GaussianMixtureProblem:
         total_log_likelihood = np.sum(log_likelihood_values)
         return total_log_likelihood
 
+    def fix(self, x: np.ndarray) -> np.ndarray:
+        x[: self.nr_of_modes] = x[: self.nr_of_modes] / np.sum(x[: self.nr_of_modes])
+        means_order = np.argsort(x[2 * self.nr_of_modes :])
+        x[: self.nr_of_modes] = x[: self.nr_of_modes][means_order]
+        x[self.nr_of_modes : 2 * self.nr_of_modes] = x[self.nr_of_modes : 2 * self.nr_of_modes][means_order]
+        x[2 * self.nr_of_modes :] = x[2 * self.nr_of_modes :][means_order]
+        return x
+
+    @classmethod
+    def create_problem(
+        cls,
+        x: np.ndarray,
+        nr_of_kernels: int | None = DEFAULT_NR_OF_KERNELS,
+        overlap_tolerance: float | None = DEFAULT_OVERLAP_TOLERANCE,
+        id: str | None = None,
+        nr_of_bins: int | None = None,
+    ) -> "GaussianMixtureProblem":
+        random_state = np.random.RandomState(seed=1)
+        nr_of_modes = int(len(x) / 3)
+        means = x[2 * nr_of_modes :]
+        sds = x[nr_of_modes : 2 * nr_of_modes]
+        weights = x[:nr_of_modes]
+        total_data_size = 100 * nr_of_modes
+        nr_of_samples = (weights * total_data_size).astype(int)
+        random_data = np.concatenate(
+            [random_state.normal(mean, sd, n) for mean, sd, n in zip(means, sds, nr_of_samples)]
+        )
+        return cls(
+            random_data,
+            nr_of_modes,
+            nr_of_kernels=nr_of_kernels,
+            overlap_tolerance=overlap_tolerance,
+            nr_of_bins=nr_of_bins,
+            id=id,
+        )
+
 
 class LinearlyScaledGaussianMixtureProblem(GaussianMixtureProblem):
     def __init__(
@@ -171,14 +224,6 @@ class LinearlyScaledGaussianMixtureProblem(GaussianMixtureProblem):
             x = scale_linearly(x, self.lower, self.upper, self.data_lower, self.data_upper)
         fixed_x = self.fix(x)
         return super().__call__(fixed_x)
-
-    def fix(self, x: np.ndarray) -> np.ndarray:
-        x[: self.nr_of_modes] = x[: self.nr_of_modes] / np.sum(x[: self.nr_of_modes])
-        means_order = np.argsort(x[2 * self.nr_of_modes :])
-        x[: self.nr_of_modes] = x[: self.nr_of_modes][means_order]
-        x[self.nr_of_modes : 2 * self.nr_of_modes] = x[self.nr_of_modes : 2 * self.nr_of_modes][means_order]
-        x[2 * self.nr_of_modes :] = x[2 * self.nr_of_modes :][means_order]
-        return x
 
     def fix_and_scale(self, x: np.ndarray) -> np.ndarray:
         if self.lower is not None and self.upper is not None:

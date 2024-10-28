@@ -18,6 +18,8 @@ from ..pyade.shade import apply as shade
 from ..pyade.shade import get_default_params as get_default_params_shade
 from .protocol import CONVERGENCE_PLOT_STEP_SIZE, Solution, Solver
 
+EM_STEPS = 20
+
 
 class DEBaseSolver(Solver):
     def __init__(self, get_default_params: Callable, apply: Callable):
@@ -34,11 +36,22 @@ class DEBaseSolver(Solver):
             np.random.seed(random_state)
             random.seed(random_state)
 
-        def init_population(population_size: int, individual_size: int, bounds: np.ndarray | list) -> np.ndarray:
-            return np.array([problem.initialize() for _ in range(population_size)])
-
         bounds = np.column_stack((problem.lower, problem.upper))
         function_problem = FunctionProblem(problem, bounds=bounds, maximize=False)
+
+        def init_population(population_size: int, individual_size: int, bounds: np.ndarray | list) -> np.ndarray:
+            population = np.array([problem.initialize() for _ in range(population_size)])
+            return population
+            # EM Warm Start:
+            # fitness_values = np.array([problem(genome) for genome in population])
+            # feasible_population = population[fitness_values != INFINITY]
+            # population_to_fix = population[fitness_values == INFINITY]
+            # fixed_population = []
+            # for genome in population_to_fix:
+            #     fixed_genome = run_em(function_problem, genome, EM_STEPS)
+            #     fixed_population.append(fixed_genome)
+            # return np.concatenate([feasible_population, np.array(fixed_population)])
+
         eval_cutoff_problem = ProblemMonitor(function_problem, max_n_evals, CONVERGENCE_PLOT_STEP_SIZE)
         params = self.get_default_params(dim=problem.lower.shape[0])
         params["bounds"] = np.column_stack([problem.lower, problem.upper])

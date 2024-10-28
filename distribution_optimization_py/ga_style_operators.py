@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator
 
 import leap_ec.ops as lops
 import numpy as np
@@ -7,11 +7,11 @@ from leap_ec.real_rep.ops import mutate_gaussian
 from leap_ec.representation import Representation
 from leap_ec.util import wrap_curry
 from pyhms.core.individual import Individual
-from pyhms.core.problem import EvalCutoffProblem, FunctionProblem, Problem
+from pyhms.core.problem import Problem, get_function_problem
 from pyhms.initializers import sample_uniform
 from toolz import pipe
 
-from .problem import GaussianMixtureProblem
+from .solver.em import run_em
 
 DEFAULT_K_ELITES = 1
 DEFAULT_GENERATIONS = 1
@@ -68,7 +68,6 @@ class SimpleEA(AbstractEA):
             parents = Individual.evaluate_population(parents)
         else:
             assert self.pop_size == len(parents)
-
         return pipe(parents, *self.pipeline, lops.elitist_survival(parents=parents, k=self.k_elites))
 
 
@@ -121,6 +120,20 @@ def mutate_aggresive_uniform(
                 if fix is not None:
                     individual.genome = fix(individual.genome)
                 individual.fitness = None
+        yield individual
+
+
+@wrap_curry
+@lops.iteriter_op
+def em(next_individual: Iterator, fix: Callable | None = None, n_steps: int = 10) -> Iterator:
+    """
+    Run Expectation Maximization on the individual's genome.
+    """
+    while True:
+        individual = next(next_individual)
+        new_genome = run_em(problem=individual.problem, genome=individual.genome, n_steps=n_steps)
+        individual.genome = fix(new_genome)
+        individual.fitness = None
         yield individual
 
 
@@ -177,8 +190,10 @@ class GAStyleEA(SimpleEA):
         representation=None,
         p_mutation=1,
         p_crossover=1,
-        use_warm_start=True,
+        use_warm_start=False,
+        use_fix=True,
     ) -> None:
+        self.gaussian_problem = get_function_problem(problem).fitness_function
         super().__init__(
             problem,
             pop_size,
@@ -187,10 +202,12 @@ class GAStyleEA(SimpleEA):
                 lops.clone,
                 ArithmeticCrossover(
                     p_xover=p_crossover,
+                    fix=self.gaussian_problem.fix if use_fix else None,
                 ),
                 mutate_uniform(
                     bounds=bounds,
                     p_mutate=p_mutation,
+                    fix=self.gaussian_problem.fix if use_fix else None,
                 ),
                 lops.evaluate,
                 lops.pool(size=pop_size),
@@ -199,6 +216,7 @@ class GAStyleEA(SimpleEA):
             k_elites=k_elites,
             representation=representation,
         )
+        self._use_fix = use_fix
         self._use_warm_start = use_warm_start
 
     def run(self, parents: list[Individual] | None = None) -> list[Individual]:
@@ -206,15 +224,90 @@ class GAStyleEA(SimpleEA):
             pop_size = self.pop_size if not self._use_warm_start else self.pop_size - 1
             parents = self.representation.create_population(pop_size=pop_size, problem=self.problem)
             if self._use_warm_start:
-                x0: np.ndarray
-                if isinstance(self.problem, GaussianMixtureProblem):
-                    x0 = self.problem.initialize_warm_start()
-                elif isinstance(self.problem, FunctionProblem):
-                    x0 = self.problem.fitness_function.initialize_warm_start()
-                elif isinstance(self.problem, EvalCutoffProblem):
-                    x0 = self.problem._inner.fitness_function.initialize_warm_start()
+                x0 = self.gaussian_problem.initialize_warm_start()
                 parents.append(Individual(genome=x0, problem=self.problem))
             parents = Individual.evaluate_population(parents)
+        else:
+            assert self.pop_size == len(parents)
+
+        return pipe(parents, *self.pipeline, lops.elitist_survival(parents=parents, k=self.k_elites))
+
+    @classmethod
+    def create(cls, generations, problem, pop_size, **kwargs):
+        k_elites = kwargs.get("k_elites") or 1
+        p_mutation = kwargs.get("p_mutation") or 0.9
+        p_crossover = kwargs.get("p_crossover") or 0.9
+        return cls(
+            generations=generations,
+            problem=problem,
+            bounds=problem.bounds,
+            pop_size=pop_size,
+            k_elites=k_elites,
+            p_mutation=p_mutation,
+            p_crossover=p_crossover,
+        )
+
+
+class GAStyleWithEM(SimpleEA):
+    def __init__(
+        self,
+        generations: int,
+        problem: Problem,
+        bounds: np.ndarray,
+        pop_size: int,
+        k_elites: int = 1,
+        representation: Representation | None = None,
+        p_mutation: float = 1,
+        p_crossover: float = 1,
+        use_warm_start: bool = True,
+        use_fix: bool = True,
+        em_steps: int = 1,
+    ) -> None:
+        self.gaussian_problem = get_function_problem(problem).fitness_function
+        super().__init__(
+            problem,
+            pop_size,
+            pipeline=[
+                lops.tournament_selection,
+                lops.clone,
+                ArithmeticCrossover(
+                    p_xover=p_crossover,
+                    fix=self.gaussian_problem.fix if use_fix else None,
+                ),
+                mutate_uniform(
+                    bounds=bounds,
+                    p_mutate=p_mutation,
+                    fix=self.gaussian_problem.fix if use_fix else None,
+                ),
+                # em(
+                #     n_steps=em_steps, fix=self.gaussian_problem.fix if use_fix else None
+                # ),
+                lops.evaluate,
+                lops.pool(size=pop_size),
+            ],
+            generations=generations,
+            k_elites=k_elites,
+            representation=representation,
+        )
+        self._em_steps = em_steps
+        self._use_warm_start = use_warm_start
+
+    def run(self, parents: list[Individual] | None = None) -> list[Individual]:
+        if parents is None:
+            initial_points = self.representation.create_population(pop_size=self.pop_size, problem=self.problem)
+            parents = []
+            for parent in initial_points:
+                genome = run_em(self.problem, parent.genome, self._em_steps)
+                genome = self.gaussian_problem.fix(genome)
+                parents.append(
+                    Individual(
+                        genome=genome,
+                        fitness=self.problem.evaluate(genome),
+                        problem=self.problem,
+                    )
+                )
+            Individual.evaluate_population(parents)
+
         else:
             assert self.pop_size == len(parents)
 

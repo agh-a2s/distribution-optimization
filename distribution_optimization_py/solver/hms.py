@@ -3,7 +3,7 @@ import random
 import numpy as np
 from pyhms.config import CMALevelConfig, EALevelConfig, SHADELevelConfig, TreeConfig
 from pyhms.core.problem import FunctionProblem
-from pyhms.sprout import DemeLimit, FarEnoughFromSeeds, LevelLimit, NBC_FarEnough, NBC_Generator, SproutMechanism
+from pyhms.sprout import DemeLimit, LevelLimit, NBC_FarEnough, NBC_Generator, SproutMechanism
 from pyhms.stop_conditions.gsc import SingularProblemEvalLimitReached
 from pyhms.stop_conditions.usc import DontStop, MetaepochLimit
 from pyhms.tree import DemeTree
@@ -99,7 +99,7 @@ class HMSSolver(Solver):
             [
                 NBC_FarEnough(HMS_CONFIG["nbc_far"], 2, False),
                 DemeLimit(1),
-                FarEnoughFromSeeds(0.25),
+                # FarEnoughFromSeeds(0.25),
             ],
             [LevelLimit(HMS_CONFIG["level_limit"])],
         )
@@ -157,7 +157,7 @@ class HMSSHADESolver(Solver):
             [
                 NBC_FarEnough(HMS_CONFIG["nbc_far"], 2, False),
                 DemeLimit(1),
-                FarEnoughFromSeeds(0.25),
+                # FarEnoughFromSeeds(0.25),
             ],
             [LevelLimit(HMS_CONFIG["level_limit"])],
         )
