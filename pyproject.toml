@@ -26,6 +26,10 @@ scipy = "^1.11.4"
 pyhms = {git = "https://github.com/agh-a2s/pyhms.git"}
 matplotlib = "^3.8.3"
 pyade-python = "^1.1"
+landscape-analysis-toolbox = {git = "https://github.com/agh-a2s/landscape-analysis-toolbox"}
+leap-ec = "^0.8.1"
+statsmodels = "^0.14.2"
+astropy = "^6.1.4"
 
 
 [tool.poetry.group.dev.dependencies]

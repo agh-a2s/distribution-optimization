@@ -25,6 +25,7 @@ repos:
         additional_dependencies:
           - numpy
         files: ^(distribution_optimization_py/|tests/)
+        exclude: "distribution_optimization_py/pyade/"
   - repo: https://github.com/pycqa/flake8
     rev: 6.0.0
     hooks:
@@ -33,6 +34,7 @@ repos:
         entry: flake8
         language: python
         types: [python]
+        exclude: "distribution_optimization_py/pyade/"
   - repo: https://github.com/pycqa/isort
     rev: 5.12.0
     hooks:

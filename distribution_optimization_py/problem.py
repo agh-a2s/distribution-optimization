@@ -1,7 +1,12 @@
-import numpy as np
-from scipy.stats import norm
-from sklearn.cluster import KMeans
+from typing import Literal
 
+import numpy as np
+import pandas as pd
+from astropy.stats import bayesian_blocks
+from scipy.special import logsumexp
+from scipy.stats import norm
+
+from .initialize import METHOD_TO_INITIALIZE_PARAMETERS
 from .scale import (
     full_simplex_to_reals,
     reals_to_full_simplex,
@@ -22,14 +27,6 @@ DEFAULT_LOWER = -5
 DEFAULT_UPPER = 5
 
 
-def initialize_parameters(X: np.ndarray, nr_of_modes: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    labels = KMeans(n_clusters=nr_of_modes).fit(X.reshape(-1, 1)).labels_
-    means = np.array([X[labels == i].mean() for i in range(nr_of_modes)])
-    stds = np.array([X[labels == i].std() for i in range(nr_of_modes)])
-    weights = np.array([np.mean(labels == i) for i in range(nr_of_modes)])
-    return weights, stds, means
-
-
 class GaussianMixtureProblem:
     def __init__(
         self,
@@ -37,16 +34,36 @@ class GaussianMixtureProblem:
         nr_of_modes: int,
         nr_of_kernels: int | None = DEFAULT_NR_OF_KERNELS,
         overlap_tolerance: float | None = DEFAULT_OVERLAP_TOLERANCE,
+        id: str | None = None,
+        nr_of_bins: int | None = None,
+        # TODO:
+        # Investigate Jenks’ Natural Breaks
+        # and Bayesian Blocks hyperparameters
+        # add quantiles with interpolation
+        bin_selection_method: Literal["bayesian_blocks", "quantiles", "equal_width"] = "equal_width",
     ):
         self.data = data
         self.nr_of_modes = nr_of_modes
         self.N = len(data)
-        self.nr_of_bins = optimal_no_bins(data)
-        self.breaks = np.linspace(np.min(data), np.max(data), self.nr_of_bins + 1)
+        if bin_selection_method == "bayesian_blocks":
+            self.breaks = bayesian_blocks(data, fitness="events", p0=0.5)
+            self.nr_of_bins = len(self.breaks) - 1
+        elif bin_selection_method == "quantiles":
+            self.nr_of_bins = optimal_no_bins(data) if nr_of_bins is None else nr_of_bins
+            self.breaks = pd.qcut(data, self.nr_of_bins, retbins=True)[1]
+        else:
+            self.nr_of_bins = optimal_no_bins(data) if nr_of_bins is None else nr_of_bins
+            self.breaks = np.linspace(np.min(data), np.max(data), self.nr_of_bins + 1)
         self.observed_bins, _ = np.histogram(data, self.breaks)
-        self.nr_of_kernels = nr_of_kernels  # Kernels are used to estimate the overlap error.
+        self.nr_of_kernels = nr_of_kernels
+        self.min_data = np.min(data)
+        self.max_data = np.max(data)
+        self.kernels = np.linspace(self.min_data, self.max_data, self.nr_of_kernels)
         self.overlap_tolerance = overlap_tolerance
         self.data_lower, self.data_upper = self.get_bounds()
+        self.lower = self.data_lower
+        self.upper = self.data_upper
+        self.id = id
 
     def __call__(self, x: np.ndarray) -> float:
         weights = x[: self.nr_of_modes]
@@ -59,29 +76,23 @@ class GaussianMixtureProblem:
         return similarity_error
 
     def overlap_error_by_density(self, means: np.ndarray, sds: np.ndarray, weights: np.ndarray) -> float:
-        kernels = np.linspace(np.min(self.data), np.max(self.data), self.nr_of_kernels)
-        densities = np.array([norm.pdf(kernels, loc=m, scale=sd) * w for m, sd, w in zip(means, sds, weights)])
-
-        overlap_in_component = np.zeros_like(densities)
-        for i in range(len(means)):
-            max_other_modes = np.max(np.delete(densities, i, axis=0), axis=0)
-            overlap_in_component[i] = np.minimum(densities[i], max_other_modes)
-
-        area_in_component = np.sum(densities, axis=1)
-        overlap_in_components = np.sum(overlap_in_component, axis=1)
+        densities = norm.pdf(self.kernels[:, np.newaxis], loc=means, scale=sds) * weights
+        n_components = len(means)
+        max_other_densities = np.zeros_like(densities)
+        for i in range(n_components):
+            max_other_densities[:, i] = np.max(np.delete(densities, i, axis=1), axis=1)
+        overlap = np.minimum(densities, max_other_densities)
+        overlap_in_components = np.sum(overlap, axis=0)
+        area_in_component = np.sum(densities, axis=0)
         ov_ratio_in_component = overlap_in_components / area_in_component
-
-        error_overlap_component = np.max(ov_ratio_in_component)
-
-        return error_overlap_component
+        return np.max(ov_ratio_in_component)
 
     def similarity_error(self, means: np.ndarray, sds: np.ndarray, weights: np.ndarray) -> float:
         estimated_bins = bin_prob_for_mixtures(means, sds, weights, self.breaks) * self.N
-        norm = estimated_bins.copy()
-        norm[norm < 1] = 1
-        diffssq = np.power((self.observed_bins - estimated_bins), 2)
-        diffssq[diffssq < 4] = 0
-        return np.sum(diffssq / norm) / self.N
+        norm = np.maximum(estimated_bins, 1)
+        diffs_sq = (self.observed_bins - estimated_bins) ** 2
+        diffs_sq = np.where(diffs_sq < 4, 0, diffs_sq)
+        return np.sum(diffs_sq / norm) / self.N
 
     def get_bounds(self) -> tuple[np.ndarray, np.ndarray]:
         data_range = np.abs(np.max(self.data) - np.min(self.data))
@@ -119,14 +130,78 @@ class GaussianMixtureProblem:
         x = np.minimum(np.maximum(x, self.data_lower), self.data_upper)
         return x
 
-    def initialize_warm_start(self) -> np.ndarray:
-        weights, sds, means = initialize_parameters(self.data, self.nr_of_modes)
+    def initialize_warm_start(self, method: str | None = "kmeans") -> np.ndarray:
+        if not getattr(self, "initialized_parameters", None):
+            self.initialized_parameters = METHOD_TO_INITIALIZE_PARAMETERS[method](self.data, self.nr_of_modes)
+        weights, sds, means = self.initialized_parameters
+        means = np.random.normal(
+            means,
+            (np.max(self.data) - np.min(self.data)) / (self.nr_of_modes * 5),
+            size=self.nr_of_modes,
+        )
+        weights = np.random.normal(
+            weights,
+            0.05,
+            size=self.nr_of_modes,
+        )
+        weights = weights / np.sum(weights)
         means_order = np.argsort(means)
         weights = weights[means_order]
         sds = sds[means_order]
+        sds = np.random.normal(
+            sds,
+            (np.max(self.data) - np.min(self.data)) / (self.nr_of_modes * 15),
+            size=self.nr_of_modes,
+        )
         means = means[means_order]
         x = np.concatenate([weights, sds, means])
         return np.minimum(np.maximum(x, self.data_lower), self.data_upper)
+
+    def log_likelihood(self, x: np.ndarray) -> float:
+        weights = x[: self.nr_of_modes]
+        sds = x[self.nr_of_modes : 2 * self.nr_of_modes]
+        means = x[2 * self.nr_of_modes :]
+        log_weights = np.log(weights)
+        log_probabilities = log_weights + norm.logpdf(self.data[:, np.newaxis], means, sds)
+        log_likelihood_values = logsumexp(log_probabilities, axis=1)
+        total_log_likelihood = np.sum(log_likelihood_values)
+        return total_log_likelihood
+
+    def fix(self, x: np.ndarray) -> np.ndarray:
+        x[: self.nr_of_modes] = x[: self.nr_of_modes] / np.sum(x[: self.nr_of_modes])
+        means_order = np.argsort(x[2 * self.nr_of_modes :])
+        x[: self.nr_of_modes] = x[: self.nr_of_modes][means_order]
+        x[self.nr_of_modes : 2 * self.nr_of_modes] = x[self.nr_of_modes : 2 * self.nr_of_modes][means_order]
+        x[2 * self.nr_of_modes :] = x[2 * self.nr_of_modes :][means_order]
+        return x
+
+    @classmethod
+    def create_problem(
+        cls,
+        x: np.ndarray,
+        nr_of_kernels: int | None = DEFAULT_NR_OF_KERNELS,
+        overlap_tolerance: float | None = DEFAULT_OVERLAP_TOLERANCE,
+        id: str | None = None,
+        nr_of_bins: int | None = None,
+    ) -> "GaussianMixtureProblem":
+        random_state = np.random.RandomState(seed=1)
+        nr_of_modes = int(len(x) / 3)
+        means = x[2 * nr_of_modes :]
+        sds = x[nr_of_modes : 2 * nr_of_modes]
+        weights = x[:nr_of_modes]
+        total_data_size = 100 * nr_of_modes
+        nr_of_samples = (weights * total_data_size).astype(int)
+        random_data = np.concatenate(
+            [random_state.normal(mean, sd, n) for mean, sd, n in zip(means, sds, nr_of_samples)]
+        )
+        return cls(
+            random_data,
+            nr_of_modes,
+            nr_of_kernels=nr_of_kernels,
+            overlap_tolerance=overlap_tolerance,
+            nr_of_bins=nr_of_bins,
+            id=id,
+        )
 
 
 class LinearlyScaledGaussianMixtureProblem(GaussianMixtureProblem):
@@ -138,8 +213,9 @@ class LinearlyScaledGaussianMixtureProblem(GaussianMixtureProblem):
         upper: float | None = DEFAULT_UPPER,
         nr_of_kernels: int | None = DEFAULT_NR_OF_KERNELS,
         overlap_tolerance: float | None = DEFAULT_OVERLAP_TOLERANCE,
+        id: str | None = None,
     ):
-        super().__init__(data, nr_of_modes, nr_of_kernels, overlap_tolerance)
+        super().__init__(data, nr_of_modes, nr_of_kernels, overlap_tolerance, id)
         self.lower = np.array([lower] * self.nr_of_modes * 3)
         self.upper = np.array([upper] * self.nr_of_modes * 3)
 
@@ -148,14 +224,6 @@ class LinearlyScaledGaussianMixtureProblem(GaussianMixtureProblem):
             x = scale_linearly(x, self.lower, self.upper, self.data_lower, self.data_upper)
         fixed_x = self.fix(x)
         return super().__call__(fixed_x)
-
-    def fix(self, x: np.ndarray) -> np.ndarray:
-        x[: self.nr_of_modes] = x[: self.nr_of_modes] / np.sum(x[: self.nr_of_modes])
-        means_order = np.argsort(x[2 * self.nr_of_modes :])
-        x[: self.nr_of_modes] = x[: self.nr_of_modes][means_order]
-        x[self.nr_of_modes : 2 * self.nr_of_modes] = x[self.nr_of_modes : 2 * self.nr_of_modes][means_order]
-        x[2 * self.nr_of_modes :] = x[2 * self.nr_of_modes :][means_order]
-        return x
 
     def fix_and_scale(self, x: np.ndarray) -> np.ndarray:
         if self.lower is not None and self.upper is not None:
@@ -177,6 +245,12 @@ class LinearlyScaledGaussianMixtureProblem(GaussianMixtureProblem):
         scaled_x = np.minimum(np.maximum(scaled_x, self.lower), self.upper)
         return scaled_x
 
+    def log_likelihood(self, x: np.ndarray) -> float:
+        if self.lower is not None and self.upper is not None:
+            x = scale_linearly(x, self.lower, self.upper, self.data_lower, self.data_upper)
+        fixed_x = self.fix(x)
+        return super().log_likelihood(fixed_x)
+
 
 class ScaledGaussianMixtureProblem(GaussianMixtureProblem):
     def __init__(
@@ -185,8 +259,9 @@ class ScaledGaussianMixtureProblem(GaussianMixtureProblem):
         nr_of_modes: int,
         nr_of_kernels: int | None = DEFAULT_NR_OF_KERNELS,
         overlap_tolerance: float | None = DEFAULT_OVERLAP_TOLERANCE,
+        id: str | None = None,
     ):
-        super().__init__(data, nr_of_modes, nr_of_kernels, overlap_tolerance)
+        super().__init__(data, nr_of_modes, nr_of_kernels, overlap_tolerance, id)
         self.lower = np.array([0.0] * (self.nr_of_modes * 3 - 1))
         self.upper = np.array([1.0] * (self.nr_of_modes * 3 - 1))
 
@@ -196,10 +271,11 @@ class ScaledGaussianMixtureProblem(GaussianMixtureProblem):
 
     def initialize(self) -> np.ndarray:
         internal_x = super().initialize()
-        return self.internal_to_reals(internal_x)
+        reals_x = self.internal_to_reals(internal_x)
+        return np.clip(reals_x, self.lower, self.upper)
 
-    def initialize_warm_start(self) -> np.ndarray:
-        internal_x = super().initialize_warm_start()
+    def initialize_warm_start(self, method: str | None = "kmeans") -> np.ndarray:
+        internal_x = super().initialize_warm_start(method)
         return self.internal_to_reals(internal_x)
 
     def reals_to_internal(self, x: np.ndarray) -> np.ndarray:
@@ -250,3 +326,7 @@ class ScaledGaussianMixtureProblem(GaussianMixtureProblem):
         )
         means = unscale_uniformly_simplex(full_simplex_to_reals(reals_with_offset_to_reals(means)))
         return np.concatenate([weights, sds, means])
+
+    def log_likelihood(self, x: np.ndarray) -> float:
+        internal_x = self.reals_to_internal(x)
+        return super().log_likelihood(internal_x)
