@@ -31,19 +31,6 @@ def test_gaussian_mixture_with_ga(truck_driving_data: np.ndarray, truck_driving_
     assert gmm._means is not None
 
 
-def test_gaussian_mixture_with_cma_es(truck_driving_data: np.ndarray, truck_driving_nr_of_modes: int):
-    gmm = GaussianMixture(
-        n_components=truck_driving_nr_of_modes,
-        algorithm="CMA-ES",
-        random_state=RANDOM_STATE,
-        max_n_evals=MAX_N_EVALS,
-    )
-    gmm.fit(truck_driving_data)
-    assert gmm._weights is not None
-    assert gmm._sds is not None
-    assert gmm._means is not None
-
-
 def test_gaussian_mixture_with_de(truck_driving_data: np.ndarray, truck_driving_nr_of_modes: int):
     gmm = GaussianMixture(
         n_components=truck_driving_nr_of_modes,

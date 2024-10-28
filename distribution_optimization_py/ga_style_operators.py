@@ -219,7 +219,7 @@ class GAStyleEA(SimpleEA):
         self._use_fix = use_fix
         self._use_warm_start = use_warm_start
 
-    def run(self, parents: list[Individual] | None = None) -> list[Individual]:
+    def run(self, parents: list[Individual] | None = None, **kwargs: Any) -> list[Individual]:
         if parents is None:
             pop_size = self.pop_size if not self._use_warm_start else self.pop_size - 1
             parents = self.representation.create_population(pop_size=pop_size, problem=self.problem)
@@ -292,7 +292,7 @@ class GAStyleWithEM(SimpleEA):
         self._em_steps = em_steps
         self._use_warm_start = use_warm_start
 
-    def run(self, parents: list[Individual] | None = None) -> list[Individual]:
+    def run(self, parents: list[Individual] | None = None, **kwargs: Any) -> list[Individual]:
         if parents is None:
             initial_points = self.representation.create_population(pop_size=self.pop_size, problem=self.problem)
             parents = []

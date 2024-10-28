@@ -1,19 +1,13 @@
 import random
 
 import numpy as np
-from leap_ec.representation import Representation
-from pyhms.core.problem import FunctionProblem
-from pyhms.core.individual import Individual
-from ..evaluator.problem_wrapper import ProblemMonitor
-from ..ga_style_operators import GAStyleEA, GAStyleWithEM
+from scipy.optimize import dual_annealing
+
 from ..problem import GaussianMixtureProblem, ScaledGaussianMixtureProblem
 from .protocol import Solution, Solver
-from .em import run_em_step
-from scipy.optimize import dual_annealing
 
 
 class SASolver(Solver):
-
     def __call__(
         self,
         problem: GaussianMixtureProblem,

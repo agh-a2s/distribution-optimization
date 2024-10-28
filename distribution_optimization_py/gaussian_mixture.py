@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from .datasets import Dataset
-from .problem import ScaledGaussianMixtureProblem
+from .problem import GaussianMixtureProblem
 from .solver import DESolver, GASolver, HMSSolver, Solver
 from .utils import mixture_probability
 
@@ -37,13 +37,12 @@ class GaussianMixture:
 
     def fit(self, X: np.ndarray) -> "GaussianMixture":
         X = self._validate_data(X)
-        problem = ScaledGaussianMixtureProblem(X, self._n_components)
+        problem = GaussianMixtureProblem(X, self._n_components)
         solution = self._solver(problem, self._max_n_evals, self._random_state)
-        scaled_solution = problem.reals_to_internal(solution.genome)
         self._X = X
-        self._weights = scaled_solution[: self._n_components]
-        self._sds = scaled_solution[self._n_components : 2 * self._n_components]
-        self._means = scaled_solution[2 * self._n_components :]
+        self._weights = solution.genome[: self._n_components]
+        self._sds = solution.genome[self._n_components : 2 * self._n_components]
+        self._means = solution.genome[2 * self._n_components :]
         return self
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
