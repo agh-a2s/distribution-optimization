@@ -1,13 +1,12 @@
 from ..datasets import DATASETS
+from ..problem import GaussianMixtureProblem
+from ..solver.cs import CSSolver, CSDESolver
 from ..solver.de import iLSHADESolver
 from ..solver.ga import GASolver
 from .evaluator import ProblemEvaluator
 
 if __name__ == "__main__":
-    from ..constrained_landscape_analysis import ConstraintHandlingTechnique, DistributionOptimizationProblem
-    from ..problem import GaussianMixtureProblem, ScaledGaussianMixtureProblem
-
-    solvers = [iLSHADESolver(), GASolver()]
+    solvers = [iLSHADESolver(), GASolver(), CSSolver(), CSDESolver()]
     problems = [
         # DistributionOptimizationProblem(
         #     dataset.data,
@@ -25,4 +24,4 @@ if __name__ == "__main__":
     ]
     evaluator = ProblemEvaluator(solvers, problems)
     results = evaluator()
-    results[0].to_csv("death_penalty_results.csv", index=False)
+    results[0].to_csv("cs_results.csv", index=False)
