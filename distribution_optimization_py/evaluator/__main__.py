@@ -1,6 +1,6 @@
 from ..datasets import DATASETS
 from ..problem import GaussianMixtureProblem
-from ..solver.cs import CSSolver, CSDESolver
+from ..solver.cs import CSDESolver, CSSolver
 from ..solver.de import iLSHADESolver
 from ..solver.ga import GASolver
 from .evaluator import ProblemEvaluator
