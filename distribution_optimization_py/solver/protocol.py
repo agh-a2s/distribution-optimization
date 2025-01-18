@@ -23,5 +23,6 @@ class Solver(Protocol):
         problem: GaussianMixtureProblem,
         max_n_evals: int,
         random_state: int | None = None,
+        **kwargs,
     ) -> Solution:
         ...

@@ -12,6 +12,7 @@ from ..problem import GaussianMixtureProblem, ScaledGaussianMixtureProblem
 from .protocol import CONVERGENCE_PLOT_STEP_SIZE, Solution, Solver
 
 CS_CONFIG = {"pop_size": 50, "p": 0.25, "alpha": 1.0, "beta": 1.5}
+CS_CONFIG_DE = {"pop_size": 50, "p": 0.25, "alpha": 1.0, "beta": 1.5}
 
 
 def select_parents(population: Population) -> np.ndarray:
@@ -53,7 +54,8 @@ class CuckooSearchBase(VariationalOperator):
 
     def abandon_nests(self, population: Population) -> Population:
         n_abandon = int(self.pa * population.size)
-        abandon_indices = np.random.choice(population.size, n_abandon, replace=False)
+        sorted_pop_indices = np.argsort(population.fitnesses)
+        abandon_indices = sorted_pop_indices[-n_abandon:]
         new_nests = np.random.uniform(
             population.problem.bounds[:, 0],
             population.problem.bounds[:, 1],
@@ -66,9 +68,14 @@ class CuckooSearchBase(VariationalOperator):
     def __call__(self, population: Population) -> Population:
         best_solution = self.get_best_solution(population)
 
+        sample_count = population.size * population.genomes.shape[1]
+
+        g = np.random.normal(0, 1, sample_count).reshape(population.genomes.shape)
+
         # Generate new solutions (but keep the current best)
-        step_sizes = self.levy_flight(population.size)
-        new_genomes = population.genomes + self.alpha * step_sizes[:, np.newaxis] * (population.genomes - best_solution)
+        step_sizes = self.levy_flight(sample_count).reshape(population.genomes.shape)
+        step = g * self.alpha * step_sizes
+        new_genomes = population.genomes + step * (population.genomes - best_solution)
         new_genomes = apply_bounds(new_genomes, population.problem.bounds, "reflect")
 
         # Evaluate new solutions
@@ -92,11 +99,15 @@ class CuckooSearchBase(VariationalOperator):
 class CuckooSearchDE(CuckooSearchBase):
     def get_new_nests(self, population: Population) -> Population:
         best_solution = self.get_best_solution(population)
-        step_sizes = self.levy_flight(population.size)
-        g = np.random.normal(0, 1, population.size)
-        new_genomes = population.genomes + g[:, np.newaxis] * self.alpha * step_sizes[:, np.newaxis] * (
-            population.genomes - best_solution
-        )
+
+        sample_count = population.size * population.genomes.shape[1]
+        g = np.random.normal(0, 1, sample_count).reshape(population.genomes.shape)
+
+        # Generate new solutions (but keep the current best)
+        step_sizes = self.levy_flight(sample_count).reshape(population.genomes.shape)
+        step = g * self.alpha * step_sizes
+
+        new_genomes = population.genomes + step * (population.genomes - best_solution)
         new_genomes = apply_bounds(new_genomes, population.problem.bounds, "reflect")
 
         # Evaluate new solutions
@@ -105,12 +116,16 @@ class CuckooSearchDE(CuckooSearchBase):
         return new_population
 
     def abandon_nests(self, population: Population) -> Population:
-        nests_to_abandon_indices = np.random.binomial(1, self.pa, size=population.size)
-        r = np.random.uniform(low=0, high=1, size=population.size)
+        sample_count = population.size * population.genomes.shape[1]
+
+        sorted_pop_indices = np.argsort(population.fitnesses)
+        n_abandon = int(self.pa * population.size)
+        indices_to_abandon = sorted_pop_indices[-n_abandon:]
+        nests_to_abandon_indices = np.zeros(population.size, dtype=int)
+        nests_to_abandon_indices[indices_to_abandon] = 1
+        r = np.random.uniform(low=0, high=1, size=sample_count).reshape(population.genomes.shape)
         parents = select_parents(population)
-        new_genomes = population.genomes + nests_to_abandon_indices[:, np.newaxis] * r[:, np.newaxis] * (
-            parents[:, 0] - parents[:, 1]
-        )
+        new_genomes = population.genomes + nests_to_abandon_indices[:, np.newaxis] * r * (parents[:, 0] - parents[:, 1])
         new_genomes = apply_bounds(new_genomes, population.problem.bounds, "reflect")
         population.update_genome(new_genomes)
         return population
@@ -133,11 +148,11 @@ class CuckooSearchDE(CuckooSearchBase):
 
 class CuckooSearchOptimizer:
     def __init__(
-        self,
-        p: float = 0.25,
-        alpha: float = 1.0,
-        beta: float = 1.5,
-        use_de: bool = True,
+            self,
+            p: float = 0.25,
+            alpha: float = 1.0,
+            beta: float = 1.5,
+            use_de: bool = True,
     ):
         self.cuckoo_search = CuckooSearchBase(p, alpha, beta) if not use_de else CuckooSearchDE(p, alpha, beta)
 
@@ -149,10 +164,11 @@ class CuckooSearchOptimizer:
 
 class CSSolver(Solver):
     def __call__(
-        self,
-        problem: GaussianMixtureProblem,
-        max_n_evals: int,
-        random_state: int | None = None,
+            self,
+            problem: GaussianMixtureProblem,
+            max_n_evals: int,
+            random_state: int | None = None,
+            **kwargs,
     ):
         if random_state:
             np.random.seed(random_state)
@@ -161,9 +177,9 @@ class CSSolver(Solver):
         function_problem = FunctionProblem(problem, bounds=bounds, maximize=False)
         eval_cutoff_problem = ProblemMonitor(function_problem, max_n_evals, CONVERGENCE_PLOT_STEP_SIZE)
         cs = CuckooSearchOptimizer(
-            p=CS_CONFIG["p"],
-            alpha=CS_CONFIG["alpha"],
-            beta=CS_CONFIG["beta"],
+            p=kwargs.get("p", CS_CONFIG["p"]),
+            alpha=kwargs.get("alpha", CS_CONFIG["alpha"]),
+            beta=kwargs.get("beta", CS_CONFIG["beta"]),
             use_de=False,
         )
         all_populations = []
@@ -197,6 +213,7 @@ class CSDESolver(Solver):
         problem: GaussianMixtureProblem,
         max_n_evals: int,
         random_state: int | None = None,
+        **kwargs,
     ):
         if random_state:
             np.random.seed(random_state)
@@ -205,9 +222,9 @@ class CSDESolver(Solver):
         function_problem = FunctionProblem(problem, bounds=bounds, maximize=False)
         eval_cutoff_problem = ProblemMonitor(function_problem, max_n_evals, CONVERGENCE_PLOT_STEP_SIZE)
         cs = CuckooSearchOptimizer(
-            p=CS_CONFIG["p"],
-            alpha=CS_CONFIG["alpha"],
-            beta=CS_CONFIG["beta"],
+            p=kwargs.get("p", CS_CONFIG_DE["p"]),
+            alpha=kwargs.get("alpha", CS_CONFIG_DE["alpha"]),
+            beta=kwargs.get("beta", CS_CONFIG_DE["beta"]),
             use_de=True,
         )
         all_populations = []

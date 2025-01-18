@@ -1,3 +1,4 @@
+from collections import defaultdict
 from time import time
 
 import numpy as np
@@ -18,22 +19,26 @@ class ProblemEvaluator:
         seed_count: int = 30,
         max_n_evals: int = 10000,
         max_pool: int = 10,
+        solver_configs = None,
     ):
         self.seed_count = seed_count
         self.solvers = solvers
         self.max_n_evals = max_n_evals
         self.max_pool = max_pool
         self.problems = problems
+        self.solver_configs = solver_configs or defaultdict(lambda: {})
 
     def evaluate_solver(
         self,
         solver: Solver,
         problem: GaussianMixtureProblem,
         max_n_evals: int,
+        solver_config: dict = None,
     ) -> list[Solution]:
         solutions = []
+        solver_config = solver_config or {}
         for random_state in range(1, self.seed_count + 1):
-            solution = solver(problem, max_n_evals, random_state)
+            solution = solver(problem, max_n_evals, random_state, **solver_config)
             solutions.append(solution)
         return solutions
 
@@ -42,7 +47,8 @@ class ProblemEvaluator:
         rows = []
         solver_to_fitness_values = {}
         for solver in self.solvers:
-            solutions = self.evaluate_solver(solver, problem, self.max_n_evals)
+            solver_config = self.solver_configs.get(solver.__class__.__name__, {}).get(problem.id)
+            solutions = self.evaluate_solver(solver, problem, self.max_n_evals, solver_config)
             fitness_values = np.array([solution.fitness for solution in solutions])
             rows.append(
                 {
