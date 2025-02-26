@@ -8,7 +8,7 @@ from plotly.subplots import make_subplots
 from .datasets import Dataset
 from .problem import GaussianMixtureProblem
 from .solver import DESolver, GASolver, HMSSolver, Solver
-from .utils import mixture_probability
+from .utils import mixture_probabilities
 
 SOLVER_NAME_TO_CLASS: dict[str, Type[Solver]] = {
     "GA": GASolver,
@@ -46,14 +46,14 @@ class GaussianMixture:
         return self
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
-        probabilities = [mixture_probability(x, self._means, self._sds, self._weights) for x in X]
+        probabilities = [mixture_probabilities(x, self._means, self._sds, self._weights) for x in X]
         return np.array(probabilities)
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         return np.argmax(self.predict_proba(X), axis=1)
 
     def score_samples(self, X: np.ndarray) -> np.ndarray:
-        likelihood = np.array([mixture_probability(x, self._means, self._sds, self._weights, False) for x in X])
+        likelihood = np.array([mixture_probabilities(x, self._means, self._sds, self._weights, False) for x in X])
         return np.sum(likelihood, axis=1)
 
     def plot(self, num: int | None = 1000, bins: int | None = 30) -> None:
@@ -135,13 +135,13 @@ def compare_solutions_plotly(
     labels: list[str],
     num: int | None = 1000,
     bins: int | None = 30,
+    title: str | None = "Comparison of GMM Fits to 1D Data",
 ) -> None:
     assert len(solutions) == len(labels)
     gmms = [GaussianMixture(n_components=nr_of_modes, random_state=1).set_params(X, solution) for solution in solutions]
 
     x = np.linspace(X.min(), X.max(), num)
     pdfs = [gmm.score_samples(x) for gmm in gmms]
-
     hist_data = np.histogram(X, bins=bins, density=True)
 
     fig = go.Figure()
@@ -167,10 +167,13 @@ def compare_solutions_plotly(
         )
 
     fig.update_layout(
-        title="Histogram and GMM PDF",
+        title=title,
         xaxis_title="X",
         yaxis_title="Density",
-        legend=dict(x=1.2, y=1),
+        legend=dict(y=0.95),
+        barmode="overlay",
+        width=1200,
+        height=800,
     )
 
     fig.show()

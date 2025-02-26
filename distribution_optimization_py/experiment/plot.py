@@ -1,15 +1,15 @@
 import pandas as pd
-import plotly.subplots as sp
 import plotly.io as pio
+import plotly.subplots as sp
 
 pio.kaleido.scope.mathjax = None
 
 if __name__ == "__main__":
-    results_dir_name = "results_23_02"
+    results_dir_name = "results_24_02"
 
     rows_rank = []
     rows_value = []
-    for nr_of_components in range(3, 11):
+    for nr_of_components in range(2, 11):
         results = pd.read_csv(
             f"./{results_dir_name}/{nr_of_components}/results.csv", index_col=0
         )
@@ -54,6 +54,12 @@ if __name__ == "__main__":
     df_value = pd.DataFrame(rows_value).set_index("nr_of_components")[
         ["DO", "GA Mann-Wald", "iLSHADE Mann-Wald", "EM"]
     ]
+    column_to_name = {
+        "DO": "GA + Keating",
+        "GA Mann-Wald": "GA + Mann-Wald",
+        "iLSHADE Mann-Wald": "iLSHADE + Mann-Wald",
+        "EM": "EM",
+    }
 
     for method in df_rank.columns:
         fig.add_trace(
@@ -61,7 +67,7 @@ if __name__ == "__main__":
                 type="scatter",
                 x=df_rank.index,
                 y=df_rank[method],
-                name=method,
+                name=column_to_name[method],
                 line=dict(color=colors[method]),
                 showlegend=True,
             ),
@@ -73,7 +79,7 @@ if __name__ == "__main__":
                 type="scatter",
                 x=df_value.index,
                 y=df_value[method],
-                name=method,
+                name=column_to_name[method],
                 line=dict(color=colors[method]),
                 showlegend=False,
             ),
@@ -101,4 +107,4 @@ if __name__ == "__main__":
     fig.update_yaxes(title_text="Average Rank", row=1, col=1)
     fig.update_yaxes(title_text="Average JS Value", row=1, col=2)
 
-    fig.write_image("./images/js_analysis.eps")
+    fig.write_image("./images/js_analysis.png", scale=2)

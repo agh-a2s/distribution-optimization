@@ -143,6 +143,7 @@ def run_experiment_for_nr_of_components(
 
 
 def run_experiment_for_difficult_examples(
+    nr_of_components: int,
     nr_of_datasets: int,
     results_dir_name: str = RESULTS_DIR_NAME,
     dataset_start_idx: int = 0,
@@ -154,22 +155,23 @@ def run_experiment_for_difficult_examples(
         "JS": js_div,
     },
 ) -> None:
-    # Right now it's hardcoded to 2 components
-    nr_of_components = 2
-    os.makedirs(f"{results_dir_name}", exist_ok=True)
+    os.makedirs(f"{results_dir_name}/{nr_of_components}", exist_ok=True)
     rows = []
     existing_results = (
-        pd.read_csv(f"{results_dir_name}/results.csv", index_col=0)
-        if os.path.exists(f"{results_dir_name}/results.csv")
+        pd.read_csv(f"{results_dir_name}/{nr_of_components}/results.csv", index_col=0)
+        if os.path.exists(f"{results_dir_name}/{nr_of_components}/results.csv")
         else None
     )
     for mixture_idx, (parameters, dataset) in enumerate(
         generate_difficult_mixture_parameters(n_mixtures=nr_of_datasets)
     ):
         dataset_idx = dataset_start_idx + mixture_idx
-        np.save(f"{results_dir_name}/dataset_{dataset_idx}.npy", dataset)
         np.save(
-            f"{results_dir_name}/parameters_{dataset_idx}.npy",
+            f"{results_dir_name}/{nr_of_components}/dataset_{dataset_idx}.npy",
+            dataset,
+        )
+        np.save(
+            f"{results_dir_name}/{nr_of_components}/parameters_{dataset_idx}.npy",
             parameters,
         )
         dataset_start = perf_counter()
@@ -210,4 +212,4 @@ def run_experiment_for_difficult_examples(
             if existing_results is not None
             else pd.DataFrame(rows)
         )
-        all_results.to_csv(f"{results_dir_name}/results.csv")
+        all_results.to_csv(f"{results_dir_name}/{nr_of_components}/results.csv")
