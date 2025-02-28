@@ -93,9 +93,7 @@ def run_experiment_for_nr_of_components(
         )
     ):
         dataset_idx = dataset_start_idx + mixture_idx
-        np.save(
-            f"{results_dir_name}/{nr_of_components}/dataset_{dataset_idx}.npy", dataset
-        )
+        np.save(f"{results_dir_name}/{nr_of_components}/dataset_{dataset_idx}.npy", dataset)
         np.save(
             f"{results_dir_name}/{nr_of_components}/parameters_{dataset_idx}.npy",
             parameters,
@@ -110,9 +108,7 @@ def run_experiment_for_nr_of_components(
                     bin_type=method.bin_type,
                     bin_number_method=method.bin_number_method,
                 )
-                solution = method.solver(
-                    problem, max_n_evals=max_n_evals, random_state=random_state
-                )
+                solution = method.solver(problem, max_n_evals=max_n_evals, random_state=random_state)
                 time = perf_counter() - start
                 row = {
                     "method": method.name,
@@ -124,10 +120,7 @@ def run_experiment_for_nr_of_components(
                     "nr_of_components": nr_of_components,
                     "dataset_idx": dataset_idx,
                     "random_state": random_state,
-                } | {
-                    name: metric(parameters, solution.genome)
-                    for name, metric in name_to_metric.items()
-                }
+                } | {name: metric(parameters, solution.genome) for name, metric in name_to_metric.items()}
                 if time > 10:
                     print(
                         f"Nr of components {nr_of_components} dataset {dataset_idx} seed {random_state} took {time} seconds"
@@ -135,9 +128,7 @@ def run_experiment_for_nr_of_components(
                 rows.append(row)
         print(f"Dataset {dataset_idx} took {perf_counter() - dataset_start} seconds")
         all_results = (
-            pd.concat([existing_results, pd.DataFrame(rows)])
-            if existing_results is not None
-            else pd.DataFrame(rows)
+            pd.concat([existing_results, pd.DataFrame(rows)]) if existing_results is not None else pd.DataFrame(rows)
         )
         all_results.to_csv(f"{results_dir_name}/{nr_of_components}/results.csv")
 
@@ -184,9 +175,7 @@ def run_experiment_for_difficult_examples(
                     bin_type=method.bin_type,
                     bin_number_method=method.bin_number_method,
                 )
-                solution = method.solver(
-                    problem, max_n_evals=max_n_evals, random_state=random_state
-                )
+                solution = method.solver(problem, max_n_evals=max_n_evals, random_state=random_state)
                 time = perf_counter() - start
                 row = {
                     "method": method.name,
@@ -197,19 +186,12 @@ def run_experiment_for_difficult_examples(
                     "optimal_fitness": problem(parameters),
                     "dataset_idx": dataset_idx,
                     "random_state": random_state,
-                } | {
-                    name: metric(parameters, solution.genome)
-                    for name, metric in name_to_metric.items()
-                }
+                } | {name: metric(parameters, solution.genome) for name, metric in name_to_metric.items()}
                 if time > 10:
-                    print(
-                        f"Dataset {dataset_idx} seed {random_state} took {time} seconds"
-                    )
+                    print(f"Dataset {dataset_idx} seed {random_state} took {time} seconds")
                 rows.append(row)
         print(f"Dataset {dataset_idx} took {perf_counter() - dataset_start} seconds")
         all_results = (
-            pd.concat([existing_results, pd.DataFrame(rows)])
-            if existing_results is not None
-            else pd.DataFrame(rows)
+            pd.concat([existing_results, pd.DataFrame(rows)]) if existing_results is not None else pd.DataFrame(rows)
         )
         all_results.to_csv(f"{results_dir_name}/{nr_of_components}/results.csv")

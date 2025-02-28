@@ -1,8 +1,8 @@
 import numpy as np
-from scipy.stats import norm
 from scipy import stats
 from scipy.integrate import quad
 from scipy.special import logsumexp
+from scipy.stats import norm
 
 DEFAULT_NR_OF_BINS = 10
 DEFAULT_N_SAMPLES = 100000
@@ -65,16 +65,12 @@ def mixture_probabilities(
     return values
 
 
-def cdf_mixtures(
-    kernel: np.ndarray, means: np.ndarray, sds: np.ndarray, weights: np.ndarray
-) -> np.ndarray:
+def cdf_mixtures(kernel: np.ndarray, means: np.ndarray, sds: np.ndarray, weights: np.ndarray) -> np.ndarray:
     cdf_values = norm.cdf(kernel[:, np.newaxis], loc=means, scale=sds)
     return cdf_values @ weights
 
 
-def bin_prob_for_mixtures(
-    means: np.ndarray, sds: np.ndarray, weights: np.ndarray, breaks: np.ndarray
-) -> np.ndarray:
+def bin_prob_for_mixtures(means: np.ndarray, sds: np.ndarray, weights: np.ndarray, breaks: np.ndarray) -> np.ndarray:
     cdfs = cdf_mixtures(breaks, means, sds, weights)
     return cdfs[1:] - cdfs[:-1]
 
@@ -132,9 +128,7 @@ def max_chi2_number_of_bins(data: np.ndarray) -> int:
     return len(data) // min_count_per_bin
 
 
-def kl_div(
-    solution1: np.ndarray, solution2: np.ndarray, n_samples: int = DEFAULT_N_SAMPLES
-):
+def kl_div(solution1: np.ndarray, solution2: np.ndarray, n_samples: int = DEFAULT_N_SAMPLES):
     weights1, sds1, means1 = solution_to_params(solution1)
     weights2, sds2, means2 = solution_to_params(solution2)
     samples = generate_gaussian_mixture_data(
@@ -148,9 +142,7 @@ def kl_div(
     return np.mean(log_p) - np.mean(log_q)
 
 
-def js_div(
-    solution1: np.ndarray, solution2: np.ndarray, n_samples: int = DEFAULT_N_SAMPLES
-):
+def js_div(solution1: np.ndarray, solution2: np.ndarray, n_samples: int = DEFAULT_N_SAMPLES):
     weights1, sds1, means1 = solution_to_params(solution1)
     weights2, sds2, means2 = solution_to_params(solution2)
     samples1 = generate_gaussian_mixture_data(
