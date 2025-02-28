@@ -18,13 +18,19 @@ from .scale import (
     simplex_to_reals,
     unscale_uniformly_simplex,
 )
-from .utils import bin_prob_for_mixtures, optimal_no_bins
+from .utils import bin_prob_for_mixtures, mann_wald_number_of_bins, max_chi2_number_of_bins, optimal_no_bins
 
 INFINITY = 1000000  # TODO: use np.inf instead of 1000000
 DEFAULT_NR_OF_KERNELS = 40
 DEFAULT_OVERLAP_TOLERANCE = 0.5
 DEFAULT_LOWER = -5
 DEFAULT_UPPER = 5
+
+NAME_TO_BIN_NUMBER_METHOD = {
+    "mann_wald": mann_wald_number_of_bins,
+    "keating": optimal_no_bins,
+    "max_chi2": max_chi2_number_of_bins,
+}
 
 
 class GaussianMixtureProblem:
@@ -35,24 +41,18 @@ class GaussianMixtureProblem:
         nr_of_kernels: int | None = DEFAULT_NR_OF_KERNELS,
         overlap_tolerance: float | None = DEFAULT_OVERLAP_TOLERANCE,
         id: str | None = None,
-        nr_of_bins: int | None = None,
-        # TODO:
-        # Investigate Jenks’ Natural Breaks
-        # and Bayesian Blocks hyperparameters
-        # add quantiles with interpolation
-        bin_selection_method: Literal["bayesian_blocks", "quantiles", "equal_width"] = "equal_width",
+        bin_type: Literal["equal_probability", "equal_width"] = "equal_width",
+        bin_number_method: Literal["mann_wald", "keating", "max_chi2"] = "keating",
+        use_correction: bool = True,
     ):
         self.data = data
         self.nr_of_modes = nr_of_modes
         self.N = len(data)
-        if bin_selection_method == "bayesian_blocks":
-            self.breaks = bayesian_blocks(data, fitness="events", p0=0.5)
+        self.nr_of_bins = NAME_TO_BIN_NUMBER_METHOD[bin_number_method](data)
+        if bin_type == "equal_probability":
+            self.breaks = pd.qcut(data, self.nr_of_bins + 1, retbins=True, duplicates="drop")[1]
             self.nr_of_bins = len(self.breaks) - 1
-        elif bin_selection_method == "quantiles":
-            self.nr_of_bins = optimal_no_bins(data) if nr_of_bins is None else nr_of_bins
-            self.breaks = pd.qcut(data, self.nr_of_bins, retbins=True)[1]
         else:
-            self.nr_of_bins = optimal_no_bins(data) if nr_of_bins is None else nr_of_bins
             self.breaks = np.linspace(np.min(data), np.max(data), self.nr_of_bins + 1)
         self.observed_bins, _ = np.histogram(data, self.breaks)
         self.nr_of_kernels = nr_of_kernels
@@ -64,6 +64,7 @@ class GaussianMixtureProblem:
         self.lower = self.data_lower
         self.upper = self.data_upper
         self.id = id
+        self.use_correction = use_correction
 
     def __call__(self, x: np.ndarray) -> float:
         weights = x[: self.nr_of_modes]
@@ -89,9 +90,9 @@ class GaussianMixtureProblem:
 
     def similarity_error(self, means: np.ndarray, sds: np.ndarray, weights: np.ndarray) -> float:
         estimated_bins = bin_prob_for_mixtures(means, sds, weights, self.breaks) * self.N
-        norm = np.maximum(estimated_bins, 1)
+        norm = np.maximum(estimated_bins, 1) if self.use_correction else estimated_bins
         diffs_sq = (self.observed_bins - estimated_bins) ** 2
-        diffs_sq = np.where(diffs_sq < 4, 0, diffs_sq)
+        diffs_sq = np.where(diffs_sq < 4, 0, diffs_sq) if self.use_correction else diffs_sq
         return np.sum(diffs_sq / norm) / self.N
 
     def get_bounds(self) -> tuple[np.ndarray, np.ndarray]:
@@ -174,34 +175,6 @@ class GaussianMixtureProblem:
         x[self.nr_of_modes : 2 * self.nr_of_modes] = x[self.nr_of_modes : 2 * self.nr_of_modes][means_order]
         x[2 * self.nr_of_modes :] = x[2 * self.nr_of_modes :][means_order]
         return x
-
-    @classmethod
-    def create_problem(
-        cls,
-        x: np.ndarray,
-        nr_of_kernels: int | None = DEFAULT_NR_OF_KERNELS,
-        overlap_tolerance: float | None = DEFAULT_OVERLAP_TOLERANCE,
-        id: str | None = None,
-        nr_of_bins: int | None = None,
-    ) -> "GaussianMixtureProblem":
-        random_state = np.random.RandomState(seed=1)
-        nr_of_modes = int(len(x) / 3)
-        means = x[2 * nr_of_modes :]
-        sds = x[nr_of_modes : 2 * nr_of_modes]
-        weights = x[:nr_of_modes]
-        total_data_size = 100 * nr_of_modes
-        nr_of_samples = (weights * total_data_size).astype(int)
-        random_data = np.concatenate(
-            [random_state.normal(mean, sd, n) for mean, sd, n in zip(means, sds, nr_of_samples)]
-        )
-        return cls(
-            random_data,
-            nr_of_modes,
-            nr_of_kernels=nr_of_kernels,
-            overlap_tolerance=overlap_tolerance,
-            nr_of_bins=nr_of_bins,
-            id=id,
-        )
 
 
 class LinearlyScaledGaussianMixtureProblem(GaussianMixtureProblem):
