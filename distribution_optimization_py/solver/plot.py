@@ -75,7 +75,7 @@ if __name__ == "__main__":
         width=1200,
         showlegend=True,
         template="plotly_white",
-        font=dict(size=14),
+        font=dict(size=16),
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=1.0),
         margin=dict(l=60, r=120, t=40, b=60),
     )
@@ -126,7 +126,7 @@ if __name__ == "__main__":
         height=600,
         width=700,
         template="plotly_white",
-        font=dict(family="Arial", size=14),
+        font=dict(size=16),
         xaxis=dict(
             title=dict(
                 text="Algorithm (Column outperforms Row)",

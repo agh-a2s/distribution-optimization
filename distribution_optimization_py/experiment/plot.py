@@ -5,13 +5,15 @@ import plotly.subplots as sp
 pio.kaleido.scope.mathjax = None
 
 if __name__ == "__main__":
-    results_dir_name = "results_24_02"
+    results_dir_name = "results"
 
     rows_rank = []
     rows_value = []
     all_js_values = {"DO": [], "GA Mann-Wald": [], "iLSHADE Mann-Wald": [], "EM": []}
     for nr_of_components in range(2, 11):
-        results = pd.read_csv(f"./{results_dir_name}/{nr_of_components}/results.csv", index_col=0)
+        results = pd.read_csv(
+            f"./{results_dir_name}/{nr_of_components}/results.csv", index_col=0
+        )
         dict_result_rank = (
             results[["method", "nr_of_components", "dataset_idx", "JS"]]
             .groupby(["method", "nr_of_components", "dataset_idx"])
@@ -37,8 +39,15 @@ if __name__ == "__main__":
         rows_value.append(dict_result_value | {"nr_of_components": nr_of_components})
 
         for method in ["DO", "GA Mann-Wald", "iLSHADE Mann-Wald", "EM"]:
-            method_js_values = results[results["method"] == method].groupby("dataset_idx")["JS"].mean().tolist()
-            all_js_values[method].append({"values": method_js_values, "nr_of_components": nr_of_components})
+            method_js_values = (
+                results[results["method"] == method]
+                .groupby("dataset_idx")["JS"]
+                .mean()
+                .tolist()
+            )
+            all_js_values[method].append(
+                {"values": method_js_values, "nr_of_components": nr_of_components}
+            )
 
     fig = sp.make_subplots(
         rows=2,
@@ -59,8 +68,12 @@ if __name__ == "__main__":
         "EM": "#d62728",
     }
 
-    df_rank = pd.DataFrame(rows_rank).set_index("nr_of_components")[["DO", "GA Mann-Wald", "iLSHADE Mann-Wald", "EM"]]
-    df_value = pd.DataFrame(rows_value).set_index("nr_of_components")[["DO", "GA Mann-Wald", "iLSHADE Mann-Wald", "EM"]]
+    df_rank = pd.DataFrame(rows_rank).set_index("nr_of_components")[
+        ["DO", "GA Mann-Wald", "iLSHADE Mann-Wald", "EM"]
+    ]
+    df_value = pd.DataFrame(rows_value).set_index("nr_of_components")[
+        ["DO", "GA Mann-Wald", "iLSHADE Mann-Wald", "EM"]
+    ]
     column_to_name = {
         "DO": "GA + Keating",
         "GA Mann-Wald": "GA + Mann-Wald",
@@ -98,7 +111,9 @@ if __name__ == "__main__":
         y_coords = []
         for data in all_js_values[method]:
             method_offset = list(df_rank.columns).index(method) * 0.2 - 0.3
-            x_coords.extend([data["nr_of_components"] + method_offset] * len(data["values"]))
+            x_coords.extend(
+                [data["nr_of_components"] + method_offset] * len(data["values"])
+            )
             y_coords.extend(data["values"])
 
         fig.add_trace(
@@ -125,7 +140,7 @@ if __name__ == "__main__":
         width=1200,
         showlegend=True,
         template="plotly_white",
-        font=dict(size=14),
+        font=dict(size=16),
         legend=dict(
             yanchor="top",
             y=0.99,
