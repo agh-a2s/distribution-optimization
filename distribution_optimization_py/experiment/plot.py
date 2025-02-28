@@ -52,7 +52,7 @@ if __name__ == "__main__":
     fig = sp.make_subplots(
         rows=2,
         cols=2,
-        subplot_titles=("Average Rank", "Average Value", ""),
+        subplot_titles=("", "", ""),
         row_heights=[
             0.35,
             0.65,
@@ -140,7 +140,7 @@ if __name__ == "__main__":
         width=1200,
         showlegend=True,
         template="plotly_white",
-        font=dict(size=16),
+        font=dict(size=18),
         legend=dict(
             yanchor="top",
             y=0.99,

@@ -133,16 +133,20 @@ if __name__ == "__main__":
         width=1400,
         showlegend=True,
         template="plotly_white",
-        font=dict(size=16),
+        font=dict(size=20),
         legend=dict(
             yanchor="top",
             y=0.99,
             xanchor="left",
             x=1.02,
-            font=dict(size=16),
+            font=dict(size=18),
         ),
         margin=dict(l=60, r=100, t=60, b=60),
     )
+
+    # Increase font size for subplot titles
+    for i in range(len(fig.layout.annotations)):
+        fig.layout.annotations[i].font.size = 22
 
     for i in range(1, 4):
         fig.update_xaxes(title_text="X" if i == 3 else None, row=i, col=1)

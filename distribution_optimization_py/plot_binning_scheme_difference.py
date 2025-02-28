@@ -125,7 +125,7 @@ fig.update_layout(
     width=1200,
     showlegend=True,
     template="plotly_white",
-    font=dict(size=16),
+    font=dict(size=18),
     legend=dict(yanchor="top", y=0.99, xanchor="left", x=1.0),
     margin=dict(l=60, r=120, t=80, b=60),
     barmode="overlay",
